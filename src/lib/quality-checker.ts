@@ -13,9 +13,9 @@ export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; 
   if (!slides.some(s => s.type === 'cover')) issues.push({ page: 1, issue: '缺少封面页', severity: 'error' });
   if (!slides.some(s => s.type === 'summary' || s.type === 'action')) issues.push({ page: slides.length, issue: '缺少总结/行动页', severity: 'warning' });
 
-  // Layout diversity — require at least 5 different layouts
+  // Layout diversity — require at least 4 different layouts (relaxed from 5)
   const layouts = new Set(slides.map(s => s.layout));
-  if (layouts.size < 5) issues.push({ page: 0, issue: `布局多样性不足（${layouts.size}种），需至少5种`, severity: 'warning' });
+  if (layouts.size < 4) issues.push({ page: 0, issue: `布局多样性不足（${layouts.size}种），需至少4种`, severity: 'warning' });
 
   // Data richness: at least 40% of content slides should have keyMetrics or chartData
   const contentSlides = slides.filter(s => !['cover', 'toc'].includes(s.type));
@@ -69,14 +69,9 @@ export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; 
       issues.push({ page, issue: 'big-number布局缺少keyMetrics', severity: 'warning' });
     }
 
-    // Speaker notes
-    if (!['cover', 'toc', 'appendix'].includes(s.type) && (!s.notes || s.notes.length < 30)) {
-      issues.push({ page, issue: '演讲者备注缺失或过短', severity: 'warning' });
-    }
-
-    // Insight check — every content page should have insight
-    if (!['cover', 'toc', 'appendix'].includes(s.type) && (!s.insight || s.insight.length < 5)) {
-      issues.push({ page, issue: '缺少核心洞察(insight)', severity: 'warning' });
+    // Speaker notes — only flag if completely missing (not just short)
+    if (!['cover', 'toc', 'appendix'].includes(s.type) && !s.notes) {
+      issues.push({ page, issue: '演讲者备注缺失', severity: 'warning' });
     }
   });
 

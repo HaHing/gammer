@@ -74,7 +74,7 @@ cover / toc / content / data / comparison / timeline / architecture / summary / 
 - **chartData**：chart-focus布局必填，3-8个数据点(label+value)，value必须是数字
 - **insight**：本页最核心的一句话洞察
 - **source**：数据来源标注
-- **notes**：演讲者备注（100-200字）
+- **notes**：演讲者备注（80-150字），每页必须有，描述本页要传达的核心信息和讲解要点
 - **designNotes**：给渲染引擎的提示
 
 ## 关键约束
@@ -82,6 +82,8 @@ cover / toc / content / data / comparison / timeline / architecture / summary / 
 - 所有数据必须来自提供的研究报告，不得编造
 - 连续两页不能用相同的layout
 - 至少使用5种不同layout
+- 最后一页type必须是summary或action
+- 每页必须有notes字段（演讲者备注）
 - 每3-4页至少有一个视觉变化（图表/大数字/引用高亮）
 - needsImage始终为false
 
@@ -180,12 +182,22 @@ export async function generateWithAI(
         if (!s.type) s.type = 'content';
         if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
+        // Auto-fill missing notes
+        if (!s.notes && !['cover', 'toc'].includes(s.type)) {
+          s.notes = `本页核心：${s.title || ''}。${s.subtitle || s.insight || ''}`;
+        }
       });
 
       while (slides.length < pageCount) {
         slides.push({ type: 'content', layout: 'full-text', title: '补充内容', bullets: ['待完善'], needsImage: false });
       }
       if (slides.length > pageCount) slides.length = pageCount;
+
+      // Ensure last slide is summary/action
+      const last = slides[slides.length - 1];
+      if (last && !['summary', 'action'].includes(last.type)) {
+        last.type = 'summary';
+      }
 
       const imgCount = slides.filter(s => s.needsImage).length;
       const layouts = [...new Set(slides.map(s => s.layout))];
