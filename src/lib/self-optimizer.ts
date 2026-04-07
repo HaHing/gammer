@@ -74,8 +74,7 @@ ${slidesJSON}
     if (optimized && optimized.length === pageCount) {
       // Preserve image data from original slides
       optimized.forEach((s, i) => {
-        if (slides[i]?.imageUrl) s.imageUrl = slides[i].imageUrl;
-        s.needsImage = !!s.needsImage;
+        s.needsImage = false;
         if (!s.layout) s.layout = 'full-text';
         if (!s.type) s.type = 'content';
       });

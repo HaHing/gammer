@@ -13,7 +13,7 @@ export interface ThemeConfig {
 }
 
 export type SlideType = 'cover' | 'toc' | 'content' | 'data' | 'comparison' | 'timeline' | 'architecture' | 'summary' | 'action' | 'appendix';
-export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight';
+export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight' | 'table-focus';
 
 export interface KeyMetric {
   label: string;
@@ -38,9 +38,7 @@ export interface SlideContent {
   insight?: string;
   source?: string;
   notes?: string;
-  needsImage: boolean;
-  imagePrompt?: string;
-  imageUrl?: string;
-  // LLM design directives
-  designNotes?: string; // LLM can give rendering hints
+  needsImage?: boolean; // deprecated, always false
+  tableData?: { headers: string[]; rows: string[][] };
+  designNotes?: string;
 }

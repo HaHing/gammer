@@ -220,7 +220,12 @@ export default function Home() {
           <div className="bg-white rounded-xl border border-[var(--border)] p-5 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto">
             {previewData ? (
               <PreviewPanel data={previewData} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
-                theme={currentTheme} loading={loading} onGenerate={handleGenerate} busy={busy} />
+                theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy}
+                onSlideUpdate={(idx, slide) => {
+                  const updated = { ...previewData, slides: [...previewData.slides] };
+                  updated.slides[idx] = slide;
+                  setPreviewData(updated);
+                }} />
             ) : (
               <StructurePreview layouts={layoutPresets[pageCount]} theme={currentTheme} pageCount={pageCount}
                 themeName={THEMES.find(t => t.key === theme)?.name || ''} />
@@ -232,12 +237,32 @@ export default function Home() {
   );
 }
 
-function PreviewPanel({ data, activeSlide, setActiveSlide, theme, loading, onGenerate, busy }: {
+function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, loading, onGenerate, busy, onSlideUpdate }: {
   data: PreviewResponse; activeSlide: number; setActiveSlide: (n: number) => void;
-  theme: ThemeConfig; loading: boolean; onGenerate: () => void; busy: boolean;
+  theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean;
+  onSlideUpdate: (idx: number, slide: SlideContent) => void;
 }) {
   const { slides, issues, score, research } = data;
   const s = slides[activeSlide];
+  const [retryInput, setRetryInput] = useState('');
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetry = async () => {
+    if (!retryInput.trim() || retrying) return;
+    setRetrying(true);
+    try {
+      const res = await fetch('/api/retry-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ previewId: data.previewId, slideIndex: activeSlide, instruction: retryInput, theme: themeKey }),
+      });
+      if (!res.ok) throw new Error();
+      const { slide } = await res.json();
+      onSlideUpdate(activeSlide, slide);
+      setRetryInput('');
+    } catch { alert('重试失败'); }
+    finally { setRetrying(false); }
+  };
 
   return (
     <>
@@ -370,6 +395,19 @@ function PreviewPanel({ data, activeSlide, setActiveSlide, theme, loading, onGen
           className="flex-1 py-1.5 text-xs rounded border border-[var(--border)] disabled:opacity-30">← 上一页</button>
         <button onClick={() => setActiveSlide(Math.min(slides.length - 1, activeSlide + 1))} disabled={activeSlide === slides.length - 1}
           className="flex-1 py-1.5 text-xs rounded border border-[var(--border)] disabled:opacity-30">下一页 →</button>
+      </div>
+
+      {/* Per-slide retry/edit */}
+      <div className="mt-3 flex gap-1.5">
+        <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
+          placeholder="输入修改指令，如：加一个表格、换成对比布局..."
+          onKeyDown={e => e.key === 'Enter' && handleRetry()}
+          className="flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
+        <button onClick={handleRetry} disabled={!retryInput.trim() || retrying}
+          className="px-3 py-1.5 text-[11px] rounded-lg text-white font-medium disabled:opacity-40"
+          style={{ background: retrying ? '#999' : theme.primary }}>
+          {retrying ? '...' : '🔄'}
+        </button>
       </div>
 
       <button onClick={onGenerate} disabled={busy}

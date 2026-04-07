@@ -12,6 +12,7 @@ export interface ThemeDesign {
   bodySize: number;
   subtitleItalic: boolean;
   useGradient: boolean;
+  useCard?: boolean; // Haio-style card container for content slides
 }
 
 export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
@@ -98,5 +99,6 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 11,
     subtitleItalic: false,
     useGradient: false,
+    useCard: true,
   },
 };

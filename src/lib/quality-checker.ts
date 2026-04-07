@@ -68,6 +68,9 @@ export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; 
     if (s.layout === 'big-number' && (!s.keyMetrics || s.keyMetrics.length === 0)) {
       issues.push({ page, issue: 'big-number布局缺少keyMetrics', severity: 'warning' });
     }
+    if (s.layout === 'table-focus' && (!s.tableData?.headers?.length || !s.tableData?.rows?.length)) {
+      issues.push({ page, issue: 'table-focus布局缺少tableData', severity: 'warning' });
+    }
 
     // Speaker notes — only flag if completely missing (not just short)
     if (!['cover', 'toc', 'appendix'].includes(s.type) && !s.notes) {

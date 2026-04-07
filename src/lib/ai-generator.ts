@@ -15,6 +15,7 @@ const STYLE_GUIDES: Record<string, string> = {
   deloitte: `Deloitte风格：咨询级严谨，每条数据标注来源。脚注完整。#86BC25绿+#000000黑。矩阵图、象限图。每页必须有source。`,
   pwc: `PwC风格：暖色调#D04A02橙红+#2D2D2D深灰。结构化表达，编号分层。数据可视化突出。`,
   brand: `品牌紫色系：渐变紫色科技感，现代简约。主色紫+白+浅灰。适合对外展示，视觉冲击力强。`,
+  haio: `Haio极简商务：深色封面(#1B1F2A)+浅灰内容页(#FAFBFC)。卡片式布局，白色卡片+左侧蓝色边条+阴影。高信息密度，小字体。蓝#2563EB+灰#4F5565+青#0D9488。适合正式商务汇报。`,
 };
 
 function getStructureGuide(pageCount: PageCount): string {
@@ -62,6 +63,7 @@ cover / toc / content / data / comparison / timeline / architecture / summary / 
 - **three-column**：三栏并列（3个方案/阶段/维度）
 - **big-number**：一个超大数字+解读（keyMetrics只放1个）
 - **quote-highlight**：引用/金句高亮（insight字段作为主引用）
+- **table-focus**：表格为主（tableData必填，headers+rows），适合竞品对比、功能矩阵、时间计划
 
 ### 配图（已禁用）
 所有页面 needsImage 设为 false，imagePrompt 留空。视觉效果通过 PPTX 渲染引擎的形状、色块、图表实现。
@@ -72,6 +74,7 @@ cover / toc / content / data / comparison / timeline / architecture / summary / 
 - **bullets**：每条80-120字，必须有实质内容、具体数据引用和分析洞察，不要泛泛而谈
 - **keyMetrics**：大数字卡片。metrics-grid布局2-4个，big-number布局1个。每个必须有label/value/unit/trend
 - **chartData**：chart-focus布局必填，3-8个数据点(label+value)，value必须是数字
+- **tableData**：table-focus布局必填，{headers: string[], rows: string[][]}，3-8行数据
 - **insight**：本页最核心的一句话洞察，必须有数据支撑
 - **source**：数据来源标注（会自动合并到演讲者备注中，不会显示在幻灯片上）
 - **notes**：演讲者备注（150-250字），每页必须有，包含：1)本页核心论点 2)讲解要点和过渡语 3)补充数据和背景信息
@@ -144,7 +147,7 @@ ${researchSection}
 2. 不要markdown代码块，不要任何其他文字，只返回纯JSON数组
 3. 第一个字符必须是 [
 4. 使用紧凑JSON格式（不要换行和缩进），减少token消耗
-5. 每个元素完整包含所有字段：type, layout, title, subtitle, bullets, keyMetrics, chartData, insight, source, notes, needsImage, imagePrompt, designNotes
+5. 每个元素完整包含所有字段：type, layout, title, subtitle, bullets, keyMetrics, chartData, tableData, insight, source, notes, designNotes
 6. null字段可以省略，空数组用[]`;
 }
 
@@ -182,6 +185,7 @@ export async function generateWithAI(
         if (!s.type) s.type = 'content';
         if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
+        if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
         // Auto-fill missing notes with richer content
         if (!s.notes && !['cover', 'toc'].includes(s.type)) {
           const parts = [`本页核心：${s.title || ''}`];

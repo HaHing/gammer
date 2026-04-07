@@ -10,7 +10,7 @@ const CW = W - PAD * 2; // content width = 11.93"
 
 function c(hex: string): string { return hex.replace('#', ''); }
 
-function addFooter(slide: PptxGenJS.Slide, theme: ThemeConfig, design: ThemeDesign, pageNum: number, total: number, source?: string) {
+function addFooter(slide: PptxGenJS.Slide, theme: ThemeConfig, design: ThemeDesign, pageNum: number, total: number) {
   if (design.footerStyle === 'full-bar') {
     slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 7.1, w: W, h: 0.4, fill: { color: c(theme.lightGray) } });
     slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 7.1, w: W, h: 0.04, fill: { color: c(theme.primary) } });
@@ -155,13 +155,17 @@ function renderInsight(slide: PptxGenJS.Slide, insight: string, theme: ThemeConf
 function renderBullets(slide: PptxGenJS.Slide, bullets: string[], theme: ThemeConfig, design: ThemeDesign, y: number, w: number, x: number = PAD): number {
   const bulletChars: Record<string, string> = { circle: '●', square: '■', dash: '—', arrow: '▸', number: '' };
   const char = bulletChars[design.bulletStyle] || '●';
+  const charsPerLine = Math.floor((w - 0.35) * 5.5); // ~5.5 chars per inch at bodySize-1
   bullets.forEach((b, i) => {
-    const by = y + i * 0.5;
+    const lines = Math.max(1, Math.ceil(b.length / charsPerLine));
+    const rowH = Math.max(0.38, lines * 0.22);
+    const by = y;
     const prefix = design.bulletStyle === 'number' ? `${i + 1}.` : char;
-    slide.addText(prefix, { x, y: by, w: 0.35, h: 0.46, fontSize: design.bulletStyle === 'number' ? 11 : 8, color: c(theme.primary), bold: true, align: 'center', valign: 'top' });
-    slide.addText(b, { x: x + 0.35, y: by, w: w - 0.35, h: 0.46, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true });
+    slide.addText(prefix, { x, y: by, w: 0.35, h: rowH, fontSize: design.bulletStyle === 'number' ? 11 : 8, color: c(theme.primary), bold: true, align: 'center', valign: 'top' });
+    slide.addText(b, { x: x + 0.35, y: by, w: w - 0.35, h: rowH, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true, valign: 'top' });
+    y += rowH + 0.06;
   });
-  return y + bullets.length * 0.5;
+  return y;
 }
 
 function renderChart(slide: PptxGenJS.Slide, chartData: SlideContent['chartData'], theme: ThemeConfig, x: number, y: number, w: number, h: number) {
@@ -203,6 +207,12 @@ function renderContentSlide(slide: PptxGenJS.Slide, content: SlideContent, theme
   slide.addText(content.title, { x: PAD, y: 0.3, w: CW, h: 0.6, fontSize: design.titleSize - 4, color: c(theme.primary), bold: true, fontFace: 'Microsoft YaHei' });
   slide.addShape('rect' as PptxGenJS.ShapeType, { x: PAD, y: 0.88, w: 1.2, h: 0.04, fill: { color: c(theme.accent) } });
 
+  // Haio card container
+  if (design.useCard) {
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: PAD - 0.15, y: 1.0, w: CW + 0.3, h: 5.8, fill: { color: 'FFFFFF' }, rectRadius: 0.1, shadow: { type: 'outer', blur: 6, offset: 2, color: '000000', opacity: 0.08 } });
+    slide.addShape('rect' as PptxGenJS.ShapeType, { x: PAD - 0.15, y: 1.0, w: 0.05, h: 5.8, fill: { color: c(theme.primary) } });
+  }
+
   switch (layout) {
     case 'big-number': renderBigNumber(slide, content, theme, design); break;
     case 'quote-highlight': renderQuoteHighlight(slide, content, theme, design); break;
@@ -210,9 +220,10 @@ function renderContentSlide(slide: PptxGenJS.Slide, content: SlideContent, theme
     case 'three-column': renderThreeColumn(slide, content, theme, design); break;
     case 'metrics-grid': renderMetricsGridLayout(slide, content, theme, design); break;
     case 'chart-focus': renderChartFocusLayout(slide, content, theme, design); break;
+    case 'table-focus': renderTableFocusLayout(slide, content, theme, design); break;
     default: renderDefaultLayout(slide, content, theme, design); break;
   }
-  addFooter(slide, theme, design, pageNum, total, content.source);
+  addFooter(slide, theme, design, pageNum, total);
 }
 
 function renderBigNumber(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
@@ -287,6 +298,38 @@ function renderMetricsGridLayout(slide: PptxGenJS.Slide, content: SlideContent, 
   if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
 }
 
+// ─── Table renderer ───
+function renderTable(slide: PptxGenJS.Slide, tableData: { headers: string[]; rows: string[][] }, theme: ThemeConfig, design: ThemeDesign, x: number, y: number, w: number): number {
+  const rows: PptxGenJS.TableRow[] = [];
+  // Header row
+  rows.push(tableData.headers.map(h => ({
+    text: h, options: { bold: true, color: 'FFFFFF', fill: { color: c(theme.primary) }, fontSize: design.bodySize - 2, fontFace: 'Microsoft YaHei', align: 'center' as const, valign: 'middle' as const },
+  })));
+  // Data rows with zebra striping
+  tableData.rows.forEach((row, i) => {
+    rows.push(row.map(cell => ({
+      text: cell, options: { fontSize: design.bodySize - 3, color: c(theme.text), fill: { color: i % 2 === 0 ? 'FFFFFF' : c(theme.lightGray) }, fontFace: 'Microsoft YaHei', valign: 'middle' as const },
+    })));
+  });
+  const rowH = 0.38;
+  const tableH = rows.length * rowH;
+  slide.addTable(rows, { x, y, w, rowH, border: { type: 'solid', pt: 0.5, color: 'E5E7EB' } });
+  return y + tableH + 0.2;
+}
+
+function renderTableFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  let curY = 1.05;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
+    curY += 0.4;
+  }
+  if (content.tableData?.headers?.length) {
+    curY = renderTable(slide, content.tableData, theme, design, PAD, curY, CW);
+  }
+  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
+  if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
+}
+
 function renderChartFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
   let curY = 1.05;
   if (content.subtitle) {
@@ -319,7 +362,7 @@ function renderSummary(slide: PptxGenJS.Slide, content: SlideContent, theme: The
   if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
   if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
   if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
-  addFooter(slide, theme, design, pageNum, total, content.source);
+  addFooter(slide, theme, design, pageNum, total);
 }
 
 // ─── Comparison ───
@@ -337,7 +380,7 @@ function renderComparison(slide: PptxGenJS.Slide, content: SlideContent, theme: 
   slide.addText('方案 B', { x: PAD + colW + 0.4, y: 1.5, w: colW, h: 0.4, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
   renderBullets(slide, bullets.slice(mid), theme, design, 2.0, colW, PAD + colW + 0.4);
   if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW);
-  addFooter(slide, theme, design, pageNum, total, content.source);
+  addFooter(slide, theme, design, pageNum, total);
 }
 
 // ─── Timeline ───
@@ -357,7 +400,7 @@ function renderTimeline(slide: PptxGenJS.Slide, content: SlideContent, theme: Th
     });
   }
   if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW);
-  addFooter(slide, theme, design, pageNum, total, content.source);
+  addFooter(slide, theme, design, pageNum, total);
 }
 
 // ─── Main export ───
