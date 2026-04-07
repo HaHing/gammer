@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     let { issues, score } = checkQuality(slides);
     console.log(`[Preview] First pass: score=${score}, issues=${issues.length}`);
 
-    if (score < 85 || issues.some(i => i.severity === 'error')) {
+    if (score < 80 || issues.some(i => i.severity === 'error')) {
       slides = await optimizeSlides(slides, issues, score, pageCount, theme);
       const recheck = checkQuality(slides);
       issues = recheck.issues;

@@ -69,12 +69,12 @@ cover / toc / content / data / comparison / timeline / architecture / summary / 
 ### 内容字段规范
 - **title**：不超过25字，必须是有观点的结论句
 - **subtitle**：本页的"So What"一句话总结
-- **bullets**：每条50-100字，必须有实质内容和数据引用
+- **bullets**：每条80-120字，必须有实质内容、具体数据引用和分析洞察，不要泛泛而谈
 - **keyMetrics**：大数字卡片。metrics-grid布局2-4个，big-number布局1个。每个必须有label/value/unit/trend
 - **chartData**：chart-focus布局必填，3-8个数据点(label+value)，value必须是数字
-- **insight**：本页最核心的一句话洞察
-- **source**：数据来源标注
-- **notes**：演讲者备注（80-150字），每页必须有，描述本页要传达的核心信息和讲解要点
+- **insight**：本页最核心的一句话洞察，必须有数据支撑
+- **source**：数据来源标注（会自动合并到演讲者备注中，不会显示在幻灯片上）
+- **notes**：演讲者备注（150-250字），每页必须有，包含：1)本页核心论点 2)讲解要点和过渡语 3)补充数据和背景信息
 - **designNotes**：给渲染引擎的提示
 
 ## 关键约束
@@ -182,9 +182,13 @@ export async function generateWithAI(
         if (!s.type) s.type = 'content';
         if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
-        // Auto-fill missing notes
+        // Auto-fill missing notes with richer content
         if (!s.notes && !['cover', 'toc'].includes(s.type)) {
-          s.notes = `本页核心：${s.title || ''}。${s.subtitle || s.insight || ''}`;
+          const parts = [`本页核心：${s.title || ''}`];
+          if (s.subtitle) parts.push(s.subtitle);
+          if (s.insight) parts.push(`关键洞察：${s.insight}`);
+          if (s.source) parts.push(`数据来源：${s.source}`);
+          s.notes = parts.join('。');
         }
       });
 

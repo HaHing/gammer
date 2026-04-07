@@ -20,8 +20,8 @@ export async function optimizeSlides(
 ): Promise<SlideContent[]> {
   // Only optimize if score is below threshold or there are errors
   const errors = issues.filter(i => i.severity === 'error');
-  if (score >= 85 && errors.length === 0) {
-    console.log(`[Optimizer] Score ${score} >= 85, no errors, skipping`);
+  if (score >= 80 && errors.length === 0) {
+    console.log(`[Optimizer] Score ${score} >= 80, no errors, skipping`);
     return slides;
   }
 

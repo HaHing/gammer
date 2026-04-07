@@ -18,9 +18,6 @@ function addFooter(slide: PptxGenJS.Slide, theme: ThemeConfig, design: ThemeDesi
     slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 7.2, w: W, h: 0.03, fill: { color: c(theme.primary) } });
   }
   slide.addText(`${pageNum} / ${total}`, { x: W - 1.5, y: 7.2, w: 1.2, h: 0.25, fontSize: 8, color: c(theme.secondary), align: 'right' });
-  if (source) {
-    slide.addText(`数据来源: ${source}`, { x: PAD, y: 7.2, w: CW - 1.5, h: 0.25, fontSize: 7, color: c(theme.secondary), italic: true });
-  }
 }
 
 // ─── Cover ───
@@ -361,7 +358,10 @@ export async function generatePptx(slides: SlideContent[], themeKey: StyleTheme,
     const content = slides[i];
     const slide = pptx.addSlide();
     slide.background = { fill: c(theme.background) };
-    if (content.notes) slide.addNotes(content.notes);
+    // Merge source into notes (not displayed on slide)
+    let notes = content.notes || '';
+    if (content.source) notes += `\n\n数据来源: ${content.source}`;
+    if (notes.trim()) slide.addNotes(notes.trim());
     switch (content.type) {
       case 'cover': renderCover(slide, content, theme, design); break;
       case 'toc': renderToc(slide, content, theme, design, total); break;
