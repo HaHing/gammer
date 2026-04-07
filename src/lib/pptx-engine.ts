@@ -28,6 +28,13 @@ function renderCover(slide: PptxGenJS.Slide, content: SlideContent, theme: Theme
       slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 0, w: W, h: 7.5, fill: { color: c(theme.accent), transparency: 70 } });
       slide.addShape('ellipse' as PptxGenJS.ShapeType, { x: W - 5, y: -2, w: 8, h: 8, fill: { color: c(theme.secondary), transparency: 80 } });
       break;
+    case 'haio-dark':
+      // Dark cover with right stats panel and blue accent (inspired by openclaw-ppt-v2)
+      slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 0, w: W, h: 7.5, fill: { color: '1B1F2A' } });
+      slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 0, w: 0.04, h: 7.5, fill: { color: c(theme.primary) } });
+      slide.addShape('rect' as PptxGenJS.ShapeType, { x: W - 2.3, y: 0, w: 2.3, h: 7.5, fill: { color: '252A37' } });
+      slide.addShape('rect' as PptxGenJS.ShapeType, { x: W - 2.3, y: 3.2, w: 0.04, h: 4.3, fill: { color: c(theme.primary) } });
+      break;
     case 'full-bleed':
       slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 0, w: W, h: 7.5, fill: { color: c(theme.primary) } });
       slide.addShape('rect' as PptxGenJS.ShapeType, { x: 0, y: 5.5, w: W, h: 2, fill: { color: '000000', transparency: 60 } });
@@ -55,9 +62,9 @@ function renderCover(slide: PptxGenJS.Slide, content: SlideContent, theme: Theme
   const isLight = ['centered', 'gradient-bottom', 'split-diagonal'].includes(design.coverStyle);
   const titleColor = isLight ? c(theme.primary) : 'FFFFFF';
   const subColor = isLight ? c(theme.secondary) : 'FFFFFFCC';
-  const titleX = design.coverStyle === 'split-diagonal' ? 1.0 : design.coverStyle === 'centered' ? 2.0 : 1.2;
-  const titleW = design.coverStyle === 'split-diagonal' ? W / 2 - 2 : design.coverStyle === 'centered' ? W - 4 : W - 3;
-  const titleY = design.coverStyle === 'centered' ? 2.0 : 1.5;
+  const titleX = design.coverStyle === 'split-diagonal' ? 1.0 : design.coverStyle === 'centered' ? 2.0 : design.coverStyle === 'haio-dark' ? 1.0 : 1.2;
+  const titleW = design.coverStyle === 'split-diagonal' ? W / 2 - 2 : design.coverStyle === 'centered' ? W - 4 : design.coverStyle === 'haio-dark' ? W - 4 : W - 3;
+  const titleY = design.coverStyle === 'centered' ? 2.0 : design.coverStyle === 'haio-dark' ? 2.3 : 1.5;
   const titleAlign = design.coverStyle === 'centered' ? 'center' as const : 'left' as const;
 
   slide.addText(content.title, {
@@ -78,6 +85,15 @@ function renderCover(slide: PptxGenJS.Slide, content: SlideContent, theme: Theme
   slide.addText('Powered by Gammer', {
     x: W - 4, y: dateY, w: 3, h: 0.4, fontSize: 9, color: subColor, align: 'right', italic: true,
   });
+
+  // Haio-dark: report type label + blue accent line
+  if (design.coverStyle === 'haio-dark') {
+    slide.addText('PROFESSIONAL REPORT', {
+      x: 1.0, y: 1.8, w: 8, h: 0.3, fontSize: 10, fontFace: 'Microsoft YaHei',
+      color: '8A8FA0', charSpacing: 4,
+    });
+    slide.addShape('line' as PptxGenJS.ShapeType, { x: 1.0, y: titleY + 2.1, w: 3.5, h: 0, line: { color: c(theme.primary), width: 2 } });
+  }
 }
 
 // ─── TOC ───

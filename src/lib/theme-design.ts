@@ -2,7 +2,7 @@ import { ThemeConfig, StyleTheme } from './types';
 
 // Theme-specific design tokens that control PPTX rendering behavior
 export interface ThemeDesign {
-  coverStyle: 'left-block' | 'full-bleed' | 'centered' | 'gradient-bottom' | 'split-diagonal' | 'brand-gradient';
+  coverStyle: 'left-block' | 'full-bleed' | 'centered' | 'gradient-bottom' | 'split-diagonal' | 'brand-gradient' | 'haio-dark';
   contentDensity: 'high' | 'medium' | 'balanced';
   bulletStyle: 'square' | 'circle' | 'dash' | 'number' | 'arrow';
   accentPosition: 'left-bar' | 'top-line' | 'bottom-bar' | 'side-stripe';
@@ -86,5 +86,17 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 14,
     subtitleItalic: false,
     useGradient: true,
+  },
+  haio: {
+    coverStyle: 'haio-dark',
+    contentDensity: 'high',
+    bulletStyle: 'circle',
+    accentPosition: 'left-bar',
+    chartStyle: 'bar',
+    footerStyle: 'thin-line',
+    titleSize: 22,
+    bodySize: 11,
+    subtitleItalic: false,
+    useGradient: false,
   },
 };

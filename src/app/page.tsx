@@ -14,6 +14,7 @@ const THEMES: { key: StyleTheme; name: string; color: string; desc: string }[] =
   { key: 'deloitte', name: 'Deloitte', color: '#86BC25', desc: '严谨·规范' },
   { key: 'pwc', name: 'PwC', color: '#D04A02', desc: '暖色·结构化' },
   { key: 'brand', name: '炫彩紫', color: '#7C3AED', desc: '渐变紫·科技感' },
+  { key: 'haio', name: 'Haio', color: '#1B1F2A', desc: '深色·极简商务' },
 ];
 
 const SCENE_PRESETS = [

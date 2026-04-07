@@ -61,4 +61,14 @@ export const themes: Record<StyleTheme, ThemeConfig> = {
     lightGray: '#F5F3FF',
     description: '渐变紫色·科技感·品牌定制',
   },
+  haio: {
+    name: 'Haio 极简商务',
+    primary: '#2563EB',
+    secondary: '#4F5565',
+    accent: '#0D9488',
+    background: '#FAFBFC',
+    text: '#2D3142',
+    lightGray: '#F3F4F6',
+    description: '深色封面·卡片布局·极简专业',
+  },
 };
