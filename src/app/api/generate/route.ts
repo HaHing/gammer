@@ -8,7 +8,7 @@ const previewCache = new Map<string, SlideContent[]>();
 
 export function cachePreview(id: string, slides: SlideContent[]) {
   previewCache.set(id, slides);
-  setTimeout(() => previewCache.delete(id), 30 * 60 * 1000);
+  setTimeout(() => previewCache.delete(id), 120 * 60 * 1000); // 2 hours
 }
 
 export function getCachedPreview(id: string): SlideContent[] | undefined {

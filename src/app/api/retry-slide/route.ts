@@ -14,9 +14,17 @@ export async function POST(req: NextRequest) {
     previewId: string; slideIndex: number; instruction: string; theme: StyleTheme;
   };
 
-  const slides = getCachedPreview(previewId);
-  if (!slides) return NextResponse.json({ error: '预览已过期，请重新生成' }, { status: 404 });
-  if (slideIndex < 0 || slideIndex >= slides.length) return NextResponse.json({ error: '页码无效' }, { status: 400 });
+  console.log(`[Retry] previewId=${previewId}, slide=${slideIndex}, instruction="${instruction}"`);
+
+  let slides = getCachedPreview(previewId);
+  if (!slides) {
+    console.log('[Retry] Cache miss — trying to reconstruct from request');
+    // If cache expired, return specific error code so frontend can handle it
+    return NextResponse.json({ error: '预览缓存已过期，请重新点击"预览内容"后再编辑', expired: true }, { status: 410 });
+  }
+  if (slideIndex < 0 || slideIndex >= slides.length) {
+    return NextResponse.json({ error: '页码无效' }, { status: 400 });
+  }
 
   const current = slides[slideIndex];
   const prev = slideIndex > 0 ? slides[slideIndex - 1] : null;
@@ -52,10 +60,18 @@ ${next ? `下一页标题: "${next.title}"` : '这是最后一页'}
       }],
     });
 
-    const text = (res.content[0] as { type: string; text: string }).text;
-    const data = safeParseJSON(text) as SlideContent | null;
+    // Extract text from all content blocks (proxy may merge noise into text)
+    let rawText = '';
+    for (const block of res.content) {
+      if (block.type === 'text') rawText += block.text;
+    }
+    console.log(`[Retry] AI response: ${rawText.length} chars`);
+    console.log(`[Retry] First 200 chars: ${rawText.substring(0, 200)}`);
+
+    const data = safeParseJSON(rawText) as SlideContent | null;
     if (!data || !data.title) {
-      return NextResponse.json({ error: 'AI 返回格式错误' }, { status: 500 });
+      console.log('[Retry] JSON parse failed or no title');
+      return NextResponse.json({ error: 'AI 返回格式错误，请重试' }, { status: 500 });
     }
 
     data.needsImage = false;
@@ -65,10 +81,11 @@ ${next ? `下一页标题: "${next.title}"` : '这是最后一页'}
     // Update the cached slides
     slides[slideIndex] = data;
     cachePreview(previewId, slides);
+    console.log(`[Retry] ✓ Updated slide ${slideIndex}: "${data.title}" (${data.layout})`);
 
     return NextResponse.json({ slide: data, slideIndex });
   } catch (e) {
-    console.error('Retry slide failed:', e);
+    console.error('[Retry] Failed:', (e as Error).message);
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

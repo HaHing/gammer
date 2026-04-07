@@ -256,11 +256,22 @@ function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, load
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ previewId: data.previewId, slideIndex: activeSlide, instruction: retryInput, theme: themeKey }),
       });
-      if (!res.ok) throw new Error();
-      const { slide } = await res.json();
-      onSlideUpdate(activeSlide, slide);
-      setRetryInput('');
-    } catch { alert('重试失败'); }
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.expired) {
+          alert('预览缓存已过期（服务器可能重启过），请重新点击"预览内容"后再编辑单页');
+        } else {
+          alert(`重试失败: ${json.error || res.status}`);
+        }
+        return;
+      }
+      if (json.slide) {
+        onSlideUpdate(activeSlide, json.slide);
+        setRetryInput('');
+      } else {
+        alert('AI 返回数据异常');
+      }
+    } catch (e) { alert(`请求失败: ${(e as Error).message}`); }
     finally { setRetrying(false); }
   };
 

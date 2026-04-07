@@ -61,7 +61,7 @@ function renderCover(slide: PptxGenJS.Slide, content: SlideContent, theme: Theme
 
   const isLight = ['centered', 'gradient-bottom', 'split-diagonal'].includes(design.coverStyle);
   const titleColor = isLight ? c(theme.primary) : 'FFFFFF';
-  const subColor = isLight ? c(theme.secondary) : 'FFFFFFCC';
+  const subColor = isLight ? c(theme.secondary) : 'D0D0D0';
   const titleX = design.coverStyle === 'split-diagonal' ? 1.0 : design.coverStyle === 'centered' ? 2.0 : design.coverStyle === 'haio-dark' ? 1.0 : 1.2;
   const titleW = design.coverStyle === 'split-diagonal' ? W / 2 - 2 : design.coverStyle === 'centered' ? W - 4 : design.coverStyle === 'haio-dark' ? W - 4 : W - 3;
   const titleY = design.coverStyle === 'centered' ? 2.0 : design.coverStyle === 'haio-dark' ? 2.3 : 1.5;
