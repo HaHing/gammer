@@ -30,74 +30,36 @@ function getStructureGuide(pageCount: PageCount): string {
 }
 
 function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
-  return `你是同时精通McKinsey/BCG/Bain方法论的顶级咨询顾问+视觉设计总监。你的目标是生成超越Gamma.app质量的专业演示文稿。
+  return `你是McKinsey/BCG级别的咨询顾问。生成严格${pageCount}页的专业演示文稿。
 
-你对每一页PPT拥有**完全的创意控制权**——页面类型、布局方式、是否配图、内容深度、数据展示方式全由你决定。
+## 方法论
+- 金字塔原理：结论先行→论据→数据佐证
+- So What：每页标题必须是有观点的结论句（如"市场突破万亿，三朵云格局已定"）
+- 数据说话：每个论点必须有研究数据支撑，严禁编造
 
-## 核心方法论
-1. **金字塔原理**：结论先行→论据支撑→数据佐证
-2. **MECE原则**：互不重叠、完全穷尽
-3. **So What测试**：每页标题必须是有观点的结论句（如"云计算市场突破万亿，三朵云格局已定"而非"市场概述"）
-4. **数据说话**：每个论点必须有研究报告的真实数据支撑，严禁编造
-5. **叙事节奏**：页面之间逻辑递进，类型和布局要有变化，避免单调重复
-6. **视觉策略**：配图必须与内容深度关联，不是装饰而是信息传达的一部分
+## 风格：${STYLE_GUIDES[theme] || STYLE_GUIDES.google}
 
-## 当前风格
-${STYLE_GUIDES[theme] || STYLE_GUIDES.google}
+## 结构：${getStructureGuide(pageCount)}
 
-## 页数结构
-${getStructureGuide(pageCount)}
+## 布局（layout）
+full-text | metrics-grid(需keyMetrics 2-4个) | chart-focus(需chartData 3-8个) | two-column | three-column | big-number(需keyMetrics 1个) | quote-highlight | table-focus(需tableData)
 
-## 设计工具箱
+## 字段
+- title：≤25字，有观点的结论句
+- subtitle：So What一句话
+- bullets：每条80-120字，含具体数据和分析洞察
+- keyMetrics：[{label,value,unit,trend}]
+- chartData：[{label,value(数字)}]
+- tableData：{headers:string[], rows:string[][]}
+- insight：核心洞察，含数据
+- source：数据来源（自动写入备注）
+- notes：演讲者备注150-250字
+- needsImage：始终false
 
-### 页面类型（type）
-cover / toc / content / data / comparison / timeline / architecture / summary / action / appendix
-
-### 布局（layout）
-- **full-text**：纯文字论述（5-7条bullets）
-- **text-left-image-right**：左文右图（概念解释+视觉辅助）
-- **image-left-text-right**：左图右文
-- **metrics-grid**：大数字卡片网格（2-4个keyMetrics，必须有keyMetrics字段）
-- **chart-focus**：图表为主（chartData必填，3-8个数据点）
-- **two-column**：双栏对比/并列
-- **three-column**：三栏并列（3个方案/阶段/维度）
-- **big-number**：一个超大数字+解读（keyMetrics只放1个）
-- **quote-highlight**：引用/金句高亮（insight字段作为主引用）
-- **table-focus**：表格为主（tableData必填，headers+rows），适合竞品对比、功能矩阵、时间计划
-
-### 配图（已禁用）
-所有页面 needsImage 设为 false，imagePrompt 留空。视觉效果通过 PPTX 渲染引擎的形状、色块、图表实现。
-
-### 内容字段规范
-- **title**：不超过25字，必须是有观点的结论句
-- **subtitle**：本页的"So What"一句话总结
-- **bullets**：每条80-120字，必须有实质内容、具体数据引用和分析洞察，不要泛泛而谈
-- **keyMetrics**：大数字卡片。metrics-grid布局2-4个，big-number布局1个。每个必须有label/value/unit/trend
-- **chartData**：chart-focus布局必填，3-8个数据点(label+value)，value必须是数字
-- **tableData**：table-focus布局必填，{headers: string[], rows: string[][]}，3-8行数据
-- **insight**：本页最核心的一句话洞察，必须有数据支撑
-- **source**：数据来源标注（会自动合并到演讲者备注中，不会显示在幻灯片上）
-- **notes**：演讲者备注（150-250字），每页必须有，包含：1)本页核心论点 2)讲解要点和过渡语 3)补充数据和背景信息
-- **designNotes**：给渲染引擎的提示
-
-## 关键约束
-- 页数严格 ${pageCount} 页，不多不少
-- 所有数据必须来自提供的研究报告，不得编造
-- 连续两页不能用相同的layout
-- 至少使用5种不同layout
-- 最后一页type必须是summary或action
-- 每页必须有notes字段（演讲者备注）
-- 每3-4页至少有一个视觉变化（图表/大数字/引用高亮）
-- needsImage始终为false
-
-## 自我优化检查清单（生成后自检）
-1. 每页标题是否都是有观点的结论句？（不是"市场概述"而是"市场突破万亿"）
-2. 每页是否都有至少一个数据点支撑？
-3. 布局是否足够多样？（至少5种不同layout）
-4. 配图页的imagePrompt是否足够具体？— 已禁用，跳过
-5. 叙事是否有逻辑递进？（问题→分析→方案→验证→行动）
-6. keyMetrics的数字是否来自研究数据？
-7. chartData的value是否都是数字类型？`;
+## 约束
+- 严格${pageCount}页，最后一页必须是summary/action
+- 连续两页不能相同layout，至少5种不同layout
+- 所有数据来自研究报告，不得编造`;
 }
 
 function buildUserPrompt(
@@ -120,10 +82,7 @@ ${research.keyStats.map(s => `- ${s.metric}: ${s.value} (${s.source})`).join('\n
 ${findings.map(f => `- ${f.fact} (${f.source}${f.url ? `, ${f.url}` : ''})`).join('\n')}`;
 
     if (research.contentStrategy) {
-      researchSection += `
-
-### 内容策略（由研究分析师制定，请严格遵循）
-${research.contentStrategy}`;
+      researchSection += ``;
     }
 
     researchSection += `
@@ -144,11 +103,9 @@ ${researchSection}
 
 ## 输出要求
 1. 返回JSON数组，严格 ${pageCount} 个元素
-2. 不要markdown代码块，不要任何其他文字，只返回纯JSON数组
-3. 第一个字符必须是 [
-4. 使用紧凑JSON格式（不要换行和缩进），减少token消耗
-5. 每个元素完整包含所有字段：type, layout, title, subtitle, bullets, keyMetrics, chartData, tableData, insight, source, notes, designNotes
-6. null字段可以省略，空数组用[]`;
+2. 不要markdown代码块，第一个字符必须是 [
+3. 紧凑JSON格式
+4. null字段可省略，空数组用[]`;
 }
 
 export async function generateWithAI(
@@ -157,7 +114,6 @@ export async function generateWithAI(
 ): Promise<SlideContent[]> {
   console.log(`[AI] Generating ${pageCount} slides, theme=${theme}`);
   console.log(`[AI] Research: ${research?.keyStats.length || 0} stats, ${research?.results[0]?.findings?.length || 0} findings`);
-  if (research?.contentStrategy) console.log(`[AI] Content strategy: ${research.contentStrategy.length} chars`);
 
   // Try up to 2 times
   for (let attempt = 0; attempt < 2; attempt++) {

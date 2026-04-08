@@ -147,9 +147,10 @@ function renderKeyMetrics(slide: PptxGenJS.Slide, metrics: SlideContent['keyMetr
 }
 
 function renderInsight(slide: PptxGenJS.Slide, insight: string, theme: ThemeConfig, y: number, w: number, x: number = PAD): number {
-  slide.addShape('roundRect' as PptxGenJS.ShapeType, { x, y, w, h: 0.55, fill: { color: c(theme.primary) }, rectRadius: 0.06 });
-  slide.addText(`💡 ${insight}`, { x: x + 0.15, y, w: w - 0.3, h: 0.55, fontSize: 11, color: 'FFFFFF', fontFace: 'Microsoft YaHei', valign: 'middle' });
-  return y + 0.7;
+  slide.addShape('roundRect' as PptxGenJS.ShapeType, { x, y, w, h: 0.6, fill: { color: c(theme.lightGray) }, rectRadius: 0.08 });
+  slide.addShape('rect' as PptxGenJS.ShapeType, { x, y, w: 0.06, h: 0.6, fill: { color: c(theme.primary) } });
+  slide.addText(`💡 ${insight}`, { x: x + 0.2, y, w: w - 0.4, h: 0.6, fontSize: 11, color: c(theme.text), fontFace: 'Microsoft YaHei', valign: 'middle', bold: true });
+  return y + 0.75;
 }
 
 function renderBullets(slide: PptxGenJS.Slide, bullets: string[], theme: ThemeConfig, design: ThemeDesign, y: number, w: number, x: number = PAD): number {

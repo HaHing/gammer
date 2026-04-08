@@ -167,13 +167,8 @@ export async function conductResearch(topic: string, description: string, scenes
     }
   }
 
-  // Phase 3: Synthesize content strategy — calibrated to page count
-  const pc = pageCount || 10;
-  if (report.keyStats.length > 0) {
-    report.contentStrategy = await synthesizeContentStrategy(topic, description, scenes, pc, report);
-  }
-
-  console.log(`[Research] Final: ${report.results[0]?.findings?.length || 0} findings, ${report.keyStats.length} stats, strategy=${!!report.contentStrategy}`);
+  // Phase 3: Skip separate content strategy — merged into AI generation prompt for speed
+  console.log(`[Research] Final: ${report.results[0]?.findings?.length || 0} findings, ${report.keyStats.length} stats`);
   return report;
 }
 
