@@ -8,7 +8,10 @@ const W = 13.33;
 const PAD = 0.7;       // left/right padding
 const CW = W - PAD * 2; // content width = 11.93"
 
-function c(hex: string): string { return hex.replace('#', ''); }
+function c(hex: string): string {
+  const s = hex.replace('#', '');
+  return s.length > 6 ? s.substring(0, 6) : s; // pptxgenjs only accepts 6-digit hex
+}
 
 function addFooter(slide: PptxGenJS.Slide, theme: ThemeConfig, design: ThemeDesign, pageNum: number, total: number) {
   if (design.footerStyle === 'full-bar') {
@@ -370,17 +373,30 @@ function renderSummary(slide: PptxGenJS.Slide, content: SlideContent, theme: The
 function renderComparison(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign, pageNum: number, total: number) {
   slide.addText(content.title, { x: PAD, y: 0.3, w: CW, h: 0.6, fontSize: design.titleSize - 4, color: c(theme.primary), bold: true, fontFace: 'Microsoft YaHei' });
   slide.addShape('rect' as PptxGenJS.ShapeType, { x: PAD, y: 0.88, w: 1.2, h: 0.04, fill: { color: c(theme.accent) } });
-  if (content.subtitle) slide.addText(content.subtitle, { x: PAD, y: 1.0, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), italic: design.subtitleItalic, fontFace: 'Microsoft YaHei' });
-  const bullets = content.bullets || [];
-  const mid = Math.ceil(bullets.length / 2);
-  const colW = (CW - 0.4) / 2;
-  slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: PAD, y: 1.5, w: colW, h: 0.4, fill: { color: c(theme.primary) }, rectRadius: 0.06 });
-  slide.addText('方案 A', { x: PAD, y: 1.5, w: colW, h: 0.4, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
-  renderBullets(slide, bullets.slice(0, mid), theme, design, 2.0, colW, PAD);
-  slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: PAD + colW + 0.4, y: 1.5, w: colW, h: 0.4, fill: { color: c(theme.accent) }, rectRadius: 0.06 });
-  slide.addText('方案 B', { x: PAD + colW + 0.4, y: 1.5, w: colW, h: 0.4, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
-  renderBullets(slide, bullets.slice(mid), theme, design, 2.0, colW, PAD + colW + 0.4);
-  if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW);
+  let curY = 1.1;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), italic: design.subtitleItalic, fontFace: 'Microsoft YaHei' });
+    curY += 0.45;
+  }
+  // Table-based comparison if tableData exists
+  if (content.tableData?.headers?.length) {
+    renderTable(slide, content.tableData, theme, design, PAD, curY, CW);
+  } else {
+    // Bullet-based two-column comparison
+    const bullets = content.bullets || [];
+    const mid = Math.ceil(bullets.length / 2);
+    const colW = (CW - 0.4) / 2;
+    // Extract labels from first bullet of each column, or use defaults
+    const labelA = bullets.length >= 2 ? bullets[0].split(/[：:]/)[0].substring(0, 15) : '方案 A';
+    const labelB = bullets.length >= 2 ? bullets[mid]?.split(/[：:]/)[0].substring(0, 15) || '方案 B' : '方案 B';
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: PAD, y: curY, w: colW, h: 0.4, fill: { color: c(theme.primary) }, rectRadius: 0.06 });
+    slide.addText(labelA, { x: PAD, y: curY, w: colW, h: 0.4, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
+    renderBullets(slide, bullets.slice(0, mid), theme, design, curY + 0.5, colW, PAD);
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: PAD + colW + 0.4, y: curY, w: colW, h: 0.4, fill: { color: c(theme.accent) }, rectRadius: 0.06 });
+    slide.addText(labelB, { x: PAD + colW + 0.4, y: curY, w: colW, h: 0.4, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
+    renderBullets(slide, bullets.slice(mid), theme, design, curY + 0.5, colW, PAD + colW + 0.4);
+  }
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW);
   addFooter(slide, theme, design, pageNum, total);
 }
 
