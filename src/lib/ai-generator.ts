@@ -36,30 +36,33 @@ function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
 - 金字塔原理：结论先行→论据→数据佐证
 - So What：每页标题必须是有观点的结论句（如"市场突破万亿，三朵云格局已定"）
 - 数据说话：每个论点必须有研究数据支撑，严禁编造
+- 高密度：每页必须内容饱满，严禁留白。至少5条bullets或3个keyMetrics+3条bullets
 
 ## 风格：${STYLE_GUIDES[theme] || STYLE_GUIDES.google}
 
 ## 结构：${getStructureGuide(pageCount)}
 
 ## 布局（layout）
-full-text | metrics-grid(需keyMetrics 2-4个) | chart-focus(需chartData 3-8个) | two-column | three-column | big-number(需keyMetrics 1个) | quote-highlight | table-focus(需tableData)
+full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) | chart-focus(需chartData 3-8个+insight+3条bullets) | two-column(每列3-4条bullets) | three-column(每列2-3条bullets) | big-number(需keyMetrics 1个+4条bullets) | quote-highlight(insight+4条bullets) | table-focus(需tableData 4-8行+insight)
 
 ## 字段
-- title：≤25字，有观点的结论句
-- subtitle：So What一句话
-- bullets：每条80-120字，含具体数据和分析洞察
-- keyMetrics：[{label,value,unit,trend}]
-- chartData：[{label,value(数字)}]
-- tableData：{headers:string[], rows:string[][]}
-- insight：核心洞察，含数据
-- source：数据来源（自动写入备注）
-- notes：演讲者备注150-250字
+- type：cover/toc/content/data/comparison/timeline/summary/action
+- title：≤25字，有观点的结论句，不是"概述"而是"市场突破万亿"
+- subtitle：So What一句话，含数据
+- bullets：每条80-150字，必须含具体数字+分析洞察+因果逻辑，不要泛泛而谈。每页至少4条
+- keyMetrics：[{label,value,unit,trend}]，数字必须来自研究数据
+- chartData：[{label,value(数字)}]，数据必须真实
+- tableData：{headers:string[], rows:string[][]}，4-8行详细数据
+- insight：核心洞察一句话，必须含数据
+- source：数据来源机构名
+- notes：演讲者备注150-250字，含讲解要点和补充数据
 - needsImage：始终false
 
 ## 约束
 - 严格${pageCount}页，最后一页必须是summary/action
 - 连续两页不能相同layout，至少5种不同layout
-- 所有数据来自研究报告，不得编造`;
+- 所有数据来自研究报告，不得编造
+- 每页内容必须饱满：bullets≥4条 或 keyMetrics≥3个 或 tableData≥4行`;
 }
 
 function buildUserPrompt(
@@ -138,9 +141,15 @@ export async function generateWithAI(
       slides.forEach((s, i) => {
         s.needsImage = false;
         if (!s.layout) s.layout = 'full-text';
-        if (!s.type) s.type = i === 0 ? 'cover' : 'content';
-        // Fix AI returning 'page' field instead of proper type for cover
-        if (i === 0 && s.type === 'content') s.type = 'cover';
+        // Map AI's "page" field to proper type if missing
+        if (!s.type) {
+          const p = (s as unknown as Record<string, unknown>).page;
+          if (i === 0) s.type = 'cover';
+          else if (i === slides.length - 1) s.type = 'summary';
+          else if (p === 2 && pageCount >= 10) s.type = 'toc';
+          else s.type = 'content';
+        }
+        if (i === 0 && s.type !== 'cover') s.type = 'cover';
         if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
         if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;

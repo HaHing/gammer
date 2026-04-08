@@ -36,6 +36,7 @@ function extractJSON(text: string): string {
     .replace(/^\[\d+\].*$/gm, '')
     .replace(/```json?\s*/g, '')
     .replace(/```\s*/g, '')
+    .replace(/^json\s*/gm, '') // bare "json" prefix without backticks
     .trim();
   const idx = s.search(/[\[{]/);
   if (idx > 0) s = s.substring(idx);

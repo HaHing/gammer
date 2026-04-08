@@ -51,12 +51,14 @@ ${next ? `下一页标题: "${next.title}"` : '这是最后一页'}
 
 ## 要求
 1. 根据用户指令修改内容，保持与前后页的逻辑连贯
-2. 标题必须是有观点的结论句
-3. 可用layout: full-text, metrics-grid, chart-focus, two-column, three-column, big-number, quote-highlight, table-focus
-4. table-focus需要tableData: {headers: string[], rows: string[][]}
-5. needsImage始终为false
-6. notes必须有（150-250字）
-7. 直接返回JSON对象（不是数组），第一个字符必须是 {`
+2. 标题必须是有观点的结论句，含数据
+3. bullets每条80-150字，含具体数字+分析洞察，至少4条
+4. 可用layout: full-text, metrics-grid, chart-focus, two-column, three-column, big-number, quote-highlight, table-focus
+5. table-focus需要tableData: {headers: string[], rows: string[][]}，至少4行
+6. needsImage始终为false
+7. notes必须有（150-250字）
+8. 内容必须饱满，严禁留白
+9. 直接返回JSON对象，第一个字符必须是 { ，不要markdown代码块`
       }],
     });
 
