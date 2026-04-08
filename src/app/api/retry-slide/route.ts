@@ -70,10 +70,23 @@ ${next ? `下一页标题: "${next.title}"` : '这是最后一页'}
     console.log(`[Retry] AI response: ${rawText.length} chars`);
     console.log(`[Retry] First 200 chars: ${rawText.substring(0, 200)}`);
 
-    const data = safeParseJSON(rawText) as SlideContent | null;
+    let data = safeParseJSON(rawText) as SlideContent | null;
     if (!data || !data.title) {
-      console.log('[Retry] JSON parse failed or no title');
-      return NextResponse.json({ error: 'AI 返回格式错误，请重试' }, { status: 500 });
+      console.log(`[Retry] JSON parse failed. Raw (500): ${rawText.substring(0, 500)}`);
+      // Retry: ask AI to output clean JSON
+      try {
+        const fix = await client.messages.create({
+          model: 'claude-sonnet-4-20250514', max_tokens: 4000,
+          messages: [{ role: 'user', content: `将以下内容转为有效JSON对象。第一个字符必须是{，不要代码块：\n${rawText.substring(0, 3000)}` }],
+        });
+        let fixText = '';
+        for (const b of fix.content) { if (b.type === 'text') fixText += b.text; }
+        data = safeParseJSON(fixText) as SlideContent | null;
+        if (data?.title) console.log('[Retry] ✓ JSON fixed by AI');
+      } catch { /* ignore */ }
+      if (!data || !data.title) {
+        return NextResponse.json({ error: 'AI 返回格式错误，请重试' }, { status: 500 });
+      }
     }
 
     data.needsImage = false;
