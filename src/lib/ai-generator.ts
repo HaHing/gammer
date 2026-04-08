@@ -135,15 +135,17 @@ export async function generateWithAI(
     const slides = safeParseJSONArray(rawText) as SlideContent[] | null;
     if (slides && slides.length > 0) {
       // Normalize
-      slides.forEach(s => {
+      slides.forEach((s, i) => {
         s.needsImage = false;
         if (!s.layout) s.layout = 'full-text';
-        if (!s.type) s.type = 'content';
+        if (!s.type) s.type = i === 0 ? 'cover' : 'content';
+        // Fix AI returning 'page' field instead of proper type for cover
+        if (i === 0 && s.type === 'content') s.type = 'cover';
         if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
         if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
-        // Auto-fill missing notes with richer content
-        if (!s.notes && !['cover', 'toc'].includes(s.type)) {
+        // Auto-fill missing or empty notes
+        if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
           const parts = [`本页核心：${s.title || ''}`];
           if (s.subtitle) parts.push(s.subtitle);
           if (s.insight) parts.push(`关键洞察：${s.insight}`);
