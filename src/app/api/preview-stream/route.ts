@@ -58,14 +58,10 @@ export async function POST(req: NextRequest) {
         let slides: SlideContent[] = [];
         let slideIndex = 0;
 
-        // Pass outline to generator as additional context in description
-        const outlineGuide = outline
-          ? `\n\n## 用户确认的大纲（必须严格按此结构生成）\n${outline.map((o, i) => `P${i + 1} [${o.type}/${o.layout}] ${o.title}\n  要点: ${o.bullets.join(' | ')}`).join('\n')}`
-          : '';
-
         await generateSlidesStreaming(
-          topic, (description || '') + outlineGuide, pageCount, theme, scenes || '', research,
-          (slide) => { slides.push(slide); send('slide', { index: slideIndex++, slide }); }
+          topic, description || '', pageCount, theme, scenes || '', research,
+          (slide) => { slides.push(slide); send('slide', { index: slideIndex++, slide }); },
+          outline || undefined
         );
 
         // Enforce page count: truncate or pad

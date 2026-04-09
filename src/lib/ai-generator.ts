@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { PageCount, StyleTheme, SlideContent } from './types';
+import type { PageCount, StyleTheme, SlideContent, OutlineItem } from './types';
 import type { ResearchReport } from './research-engine';
 import { safeParseJSONArray } from './research-engine';
 import { themeDesigns } from './theme-design';
@@ -30,8 +30,20 @@ function getStructureGuide(pageCount: PageCount): string {
   return guides[pageCount];
 }
 
-function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
+function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount, outline?: OutlineItem[]): string {
   const design = themeDesigns[theme] || themeDesigns.google;
+
+  // When outline exists, use it as THE authoritative structure instead of generic guide
+  const structureSection = outline && outline.length > 0
+    ? `## ⚠️ 用户已确认的大纲结构（最高优先级，必须严格遵循）
+你必须严格按照以下大纲生成内容，不得修改标题方向、不得调整页面顺序、不得增减页数。
+每页的type和layout必须与大纲一致。每页的bullets方向必须围绕大纲中的要点展开。
+
+${outline.map((o, i) => `### 第${i + 1}页 [type=${o.type}, layout=${o.layout}]
+标题方向: ${o.title}
+内容要点: ${o.bullets.join(' | ')}`).join('\n\n')}`
+    : `## 结构：${getStructureGuide(pageCount)}`;
+
   return `你是McKinsey/BCG级别的咨询顾问。生成严格${pageCount}页的专业演示文稿。
 
 ## 方法论
@@ -48,7 +60,7 @@ function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
 ## 图表偏好：${design.chartPreference}（市场份额数据用pie/doughnut，趋势数据用line，对比数据用bar）
 ## 指标展示风格：${design.metricsStyle}
 
-## 结构：${getStructureGuide(pageCount)}
+${structureSection}
 
 ## 布局（layout）— 智能选择指南
 full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) | chart-focus(需chartData 3-8个+insight+3条bullets) | two-column(每列3-4条bullets，适合对比/分类) | three-column(每列2-3条bullets，适合3个维度) | big-number(需keyMetrics 1个+4条bullets，适合震撼开场) | quote-highlight(insight+4条bullets，适合引用/结论) | table-focus(需tableData 4-8行+insight) | icon-grid(3-6个bullets，每条以emoji开头，适合功能/特性展示) | process-flow(3-6个bullets，按步骤顺序，适合流程/方法论) | funnel(3-5个bullets，从大到小排列，适合转化/筛选)
@@ -177,7 +189,8 @@ function correctLayout(s: SlideContent): void {
 
 export async function generateWithAI(
   topic: string, description: string, pageCount: PageCount,
-  theme: StyleTheme, scenes: string, research: ResearchReport | null
+  theme: StyleTheme, scenes: string, research: ResearchReport | null,
+  outline?: OutlineItem[]
 ): Promise<SlideContent[]> {
   console.log(`[AI] Generating ${pageCount} slides, theme=${theme}`);
   console.log(`[AI] Research: ${research?.keyStats.length || 0} stats, ${research?.results[0]?.findings?.length || 0} findings`);
@@ -187,7 +200,7 @@ export async function generateWithAI(
     const stream = client.messages.stream({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 30000,
-      system: buildSystemPrompt(theme, pageCount),
+      system: buildSystemPrompt(theme, pageCount, outline),
       messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
     });
 
@@ -295,12 +308,13 @@ function normalizeSlide(s: SlideContent, i: number, total: number): SlideContent
 export async function generateSlidesStreaming(
   topic: string, description: string, pageCount: PageCount,
   theme: StyleTheme, scenes: string, research: ResearchReport | null,
-  onSlide: (slide: SlideContent) => void
+  onSlide: (slide: SlideContent) => void,
+  outline?: OutlineItem[]
 ): Promise<void> {
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 30000,
-    system: buildSystemPrompt(theme, pageCount),
+    system: buildSystemPrompt(theme, pageCount, outline),
     messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
   });
 
