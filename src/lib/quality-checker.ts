@@ -71,6 +71,15 @@ export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; 
     if (s.layout === 'table-focus' && (!s.tableData?.headers?.length || !s.tableData?.rows?.length)) {
       issues.push({ page, issue: 'table-focus布局缺少tableData', severity: 'warning' });
     }
+    if (s.layout === 'icon-grid' && (!s.bullets || s.bullets.length < 3)) {
+      issues.push({ page, issue: 'icon-grid布局需至少3个bullets', severity: 'warning' });
+    }
+    if (s.layout === 'process-flow' && (!s.bullets || s.bullets.length < 3)) {
+      issues.push({ page, issue: 'process-flow布局需至少3个步骤', severity: 'warning' });
+    }
+    if (s.layout === 'funnel' && (!s.bullets || s.bullets.length < 3)) {
+      issues.push({ page, issue: 'funnel布局需至少3个层级', severity: 'warning' });
+    }
 
     // Speaker notes — only flag if completely missing (not just short)
     if (!['cover', 'toc', 'appendix'].includes(s.type) && !s.notes) {

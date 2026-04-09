@@ -170,6 +170,7 @@ export async function generateWithAI(
         if (i === 0 && s.type !== 'cover') s.type = 'cover';
         if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
+        if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
         if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
         // Auto-fill missing or empty notes
         if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
