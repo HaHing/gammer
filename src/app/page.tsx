@@ -226,6 +226,9 @@ export default function Home() {
                   const updated = { ...previewData, slides: [...previewData.slides] };
                   updated.slides[idx] = slide;
                   setPreviewData(updated);
+                }}
+                onSlidesReplace={(slides) => {
+                  setPreviewData({ ...previewData, slides });
                 }} />
             ) : (
               <StructurePreview layouts={layoutPresets[pageCount]} theme={currentTheme} pageCount={pageCount}
@@ -238,15 +241,18 @@ export default function Home() {
   );
 }
 
-function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, loading, onGenerate, busy, onSlideUpdate }: {
+function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace }: {
   data: PreviewResponse; activeSlide: number; setActiveSlide: (n: number) => void;
   theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean;
   onSlideUpdate: (idx: number, slide: SlideContent) => void;
+  onSlidesReplace: (slides: SlideContent[]) => void;
 }) {
   const { slides, issues, score, research } = data;
   const s = slides[activeSlide];
   const [retryInput, setRetryInput] = useState('');
   const [retrying, setRetrying] = useState(false);
+  const [globalInput, setGlobalInput] = useState('');
+  const [globalEditing, setGlobalEditing] = useState(false);
 
   const handleRetry = async () => {
     if (!retryInput.trim() || retrying) return;
@@ -274,6 +280,28 @@ function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, load
       }
     } catch (e) { alert(`请求失败: ${(e as Error).message}`); }
     finally { setRetrying(false); }
+  };
+
+  const handleGlobalEdit = async () => {
+    if (!globalInput.trim() || globalEditing) return;
+    setGlobalEditing(true);
+    try {
+      const res = await fetch('/api/edit-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ previewId: data.previewId, instruction: globalInput, theme: themeKey }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.expired ? '预览缓存已过期，请重新预览' : `编辑失败: ${json.error}`);
+        return;
+      }
+      if (json.slides) {
+        onSlidesReplace(json.slides);
+        setGlobalInput('');
+      }
+    } catch (e) { alert(`请求失败: ${(e as Error).message}`); }
+    finally { setGlobalEditing(false); }
   };
 
   return (
@@ -358,13 +386,26 @@ function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, load
       {/* Per-slide retry/edit */}
       <div className="mt-3 flex gap-1.5">
         <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
-          placeholder="输入修改指令，如：加一个表格、换成对比布局..."
+          placeholder="修改本页：加表格、换布局..."
           onKeyDown={e => e.key === 'Enter' && handleRetry()}
           className="flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
         <button onClick={handleRetry} disabled={!retryInput.trim() || retrying}
           className="px-3 py-1.5 text-[11px] rounded-lg text-white font-medium disabled:opacity-40"
           style={{ background: retrying ? '#999' : theme.primary }}>
           {retrying ? '...' : '🔄'}
+        </button>
+      </div>
+
+      {/* Global edit */}
+      <div className="mt-2 flex gap-1.5">
+        <input type="text" value={globalInput} onChange={e => setGlobalInput(e.target.value)}
+          placeholder="全局修改：改风格、加数据、调语气..."
+          onKeyDown={e => e.key === 'Enter' && handleGlobalEdit()}
+          className="flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
+        <button onClick={handleGlobalEdit} disabled={!globalInput.trim() || globalEditing}
+          className="px-3 py-1.5 text-[11px] rounded-lg font-medium disabled:opacity-40 border"
+          style={{ borderColor: theme.primary, color: globalEditing ? '#999' : theme.primary }}>
+          {globalEditing ? '...' : '✨'}
         </button>
       </div>
 
