@@ -1,20 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --bg-0: #09090B;
-  --bg-1: #111113;
-  --bg-2: #18181B;
-  --bg-3: #1F1F23;
-  --text-0: #FAFAFA;
-  --text-1: #A1A1AA;
-  --text-2: #71717A;
-  --border-0: #27272A;
-  --border-1: #3F3F46;
-  --accent: #8B5CF6;
-  --accent-dim: rgba(139, 92, 246, 0.12);
-  --success: #22C55E;
-  --warn: #EAB308;
-  --err: #EF4444;
+  --bg-0: #FFFFFF;
+  --bg-1: #F9FAFB;
+  --bg-2: #F3F4F6;
+  --bg-3: #E5E7EB;
+  --text-0: #111827;
+  --text-1: #6B7280;
+  --text-2: #9CA3AF;
+  --border-0: #E5E7EB;
+  --border-1: #D1D5DB;
+  --accent: #7C3AED;
+  --accent-light: #EDE9FE;
+  --accent-dim: rgba(124, 58, 237, 0.08);
+  --success: #059669;
+  --warn: #D97706;
+  --err: #DC2626;
 }
 
 * { scrollbar-width: thin; scrollbar-color: var(--border-0) transparent; }
@@ -26,30 +27,31 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: var(--accent-dim); color: var(--text-0); }
+::selection { background: var(--accent-light); color: var(--accent); }
 
 /* Slide preview mini cards */
 .slide-mini {
   aspect-ratio: 16/9;
   border: 1px solid var(--border-0);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   font-size: 6px;
   position: relative;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.slide-mini:hover { border-color: var(--border-1); }
+.slide-mini:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
 .slide-mini .slide-label {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(9, 9, 11, 0.85);
-  color: var(--text-2);
+  background: rgba(255,255,255,0.9);
+  color: var(--text-1);
   padding: 2px 4px;
   font-size: 7px;
   text-align: center;
+  backdrop-filter: blur(4px);
 }
 
 @keyframes pulse-slow {

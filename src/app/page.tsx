@@ -8,14 +8,81 @@ import SlideRenderer from '@/components/SlideRenderer';
 
 const PAGE_OPTIONS: PageCount[] = [5, 10, 15, 20, 25];
 
-const THEMES: { key: StyleTheme; name: string; dot: string }[] = [
-  { key: 'google', name: 'Google', dot: '#4285F4' },
-  { key: 'amazon', name: 'Amazon', dot: '#FF9900' },
-  { key: 'microsoft', name: 'Microsoft', dot: '#0078D4' },
-  { key: 'deloitte', name: 'Deloitte', dot: '#86BC25' },
-  { key: 'pwc', name: 'PwC', dot: '#D04A02' },
-  { key: 'brand', name: 'Custom', dot: '#8B5CF6' },
-  { key: 'haio', name: 'Haio', dot: '#52525B' },
+// SVG icon components
+const Icon = {
+  search: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+  download: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  left: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>,
+  right: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>,
+  refresh: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
+  edit: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  file: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+  layers: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+  palette: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>,
+  check: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
+};
+
+// Per-theme color palettes: 5 shade/combo options each
+const THEME_PALETTES: Record<StyleTheme, { primary: string; accent: string; label: string }[]> = {
+  google: [
+    { primary: '#1A73E8', accent: '#EA4335', label: '经典蓝' },
+    { primary: '#0D47A1', accent: '#FF5722', label: '深海蓝' },
+    { primary: '#4285F4', accent: '#FBBC04', label: '天空蓝' },
+    { primary: '#1565C0', accent: '#43A047', label: '蓝绿搭' },
+    { primary: '#2196F3', accent: '#E91E63', label: '蓝粉搭' },
+  ],
+  amazon: [
+    { primary: '#232F3E', accent: '#FF9900', label: '经典橙' },
+    { primary: '#131921', accent: '#FFB84D', label: '深夜橙' },
+    { primary: '#37475A', accent: '#FF9900', label: '浅灰橙' },
+    { primary: '#232F3E', accent: '#00A8E1', label: '蓝色系' },
+    { primary: '#485769', accent: '#F0C14B', label: '金色系' },
+  ],
+  microsoft: [
+    { primary: '#0078D4', accent: '#D83B01', label: '经典蓝' },
+    { primary: '#005A9E', accent: '#E74856', label: '深蓝红' },
+    { primary: '#0099BC', accent: '#FFB900', label: '青金搭' },
+    { primary: '#2B579A', accent: '#217346', label: 'Office' },
+    { primary: '#00B7C3', accent: '#8764B8', label: '青紫搭' },
+  ],
+  deloitte: [
+    { primary: '#86BC25', accent: '#0D8390', label: '经典绿' },
+    { primary: '#43B02A', accent: '#00A3E0', label: '亮绿蓝' },
+    { primary: '#6B9E1F', accent: '#333333', label: '沉稳绿' },
+    { primary: '#0D8390', accent: '#86BC25', label: '青绿搭' },
+    { primary: '#26890D', accent: '#62B5E5', label: '森林蓝' },
+  ],
+  pwc: [
+    { primary: '#D04A02', accent: '#EB8C00', label: '经典橙' },
+    { primary: '#A3370A', accent: '#D4A843', label: '深橙金' },
+    { primary: '#E0602B', accent: '#2D2D2D', label: '亮橙灰' },
+    { primary: '#C23616', accent: '#F39C12', label: '红金搭' },
+    { primary: '#D04A02', accent: '#0077B6', label: '橙蓝搭' },
+  ],
+  brand: [
+    { primary: '#7C3AED', accent: '#EC4899', label: '紫粉搭' },
+    { primary: '#6D28D9', accent: '#F59E0B', label: '深紫金' },
+    { primary: '#8B5CF6', accent: '#06B6D4', label: '紫青搭' },
+    { primary: '#A855F7', accent: '#10B981', label: '亮紫绿' },
+    { primary: '#5B21B6', accent: '#F43F5E', label: '暗紫红' },
+  ],
+  haio: [
+    { primary: '#2563EB', accent: '#0D9488', label: '蓝青搭' },
+    { primary: '#1D4ED8', accent: '#6366F1', label: '深蓝紫' },
+    { primary: '#3B82F6', accent: '#F59E0B', label: '蓝金搭' },
+    { primary: '#1E40AF', accent: '#059669', label: '深蓝绿' },
+    { primary: '#60A5FA', accent: '#A78BFA', label: '浅蓝紫' },
+  ],
+};
+
+const THEMES: { key: StyleTheme; name: string; dot: string; icon: string }[] = [
+  { key: 'google', name: 'Google', dot: '#4285F4', icon: 'G' },
+  { key: 'amazon', name: 'Amazon', dot: '#FF9900', icon: 'A' },
+  { key: 'microsoft', name: 'Microsoft', dot: '#0078D4', icon: 'M' },
+  { key: 'deloitte', name: 'Deloitte', dot: '#86BC25', icon: 'D' },
+  { key: 'pwc', name: 'PwC', dot: '#D04A02', icon: 'P' },
+  { key: 'brand', name: '自定义', dot: '#7C3AED', icon: '✦' },
+  { key: 'haio', name: 'Haio', dot: '#2563EB', icon: 'H' },
 ];
 
 const SCENES = [
@@ -47,12 +114,13 @@ export default function Home() {
   const [previewing, setPreviewing] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [customColor, setCustomColor] = useState('#8B5CF6');
+  const [paletteIdx, setPaletteIdx] = useState(0);
   const [previewStatus, setPreviewStatus] = useState('');
   const [progressPhase, setProgressPhase] = useState('');
   const [slidesDone, setSlidesDone] = useState(0);
 
-  const currentTheme = theme === 'brand' ? { ...themes.brand, primary: customColor } : themes[theme];
+  const palette = THEME_PALETTES[theme][paletteIdx] || THEME_PALETTES[theme][0];
+  const currentTheme: ThemeConfig = { ...themes[theme], primary: palette.primary, accent: palette.accent };
 
   const handlePreview = async () => {
     if (!topic.trim()) return;
@@ -114,58 +182,64 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-30 border-b" style={{ borderColor: 'var(--border-0)', background: 'rgba(9,9,11,0.8)', backdropFilter: 'blur(12px)' }}>
-        <div className="max-w-[1280px] mx-auto h-12 px-6 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="text-[15px] font-semibold tracking-[-0.01em]">Gammer</span>
-            <span className="text-[10px] px-1.5 py-[1px] rounded font-medium" style={{ color: 'var(--text-2)', border: '1px solid var(--border-0)' }}>v0.0.01</span>
+      {/* Header */}
+      <header className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur-md" style={{ borderColor: 'var(--border-0)' }}>
+        <div className="max-w-[1280px] mx-auto h-13 px-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: palette.primary }}>G</div>
+            <span className="text-[16px] font-semibold tracking-[-0.02em]" style={{ color: 'var(--text-0)' }}>Gammer</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-light)' }}>v0.0.01</span>
           </div>
+          <span className="text-[12px] font-medium" style={{ color: 'var(--text-2)' }}>AI Presentation Engine</span>
         </div>
       </header>
 
-      {/* ── Main ── */}
-      <main className="flex-1 max-w-[1280px] mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
-
-        {/* ── Left: Config ── */}
+      <main className="flex-1 max-w-[1280px] mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+        {/* Left: Config */}
         <div className="space-y-6">
           {/* Topic */}
           <div>
-            <label className="block text-[13px] font-medium mb-2" style={{ color: 'var(--text-1)' }}>主题</label>
+            <label className="flex items-center gap-1.5 text-[13px] font-medium mb-2" style={{ color: 'var(--text-0)' }}>
+              {Icon.file} 演示主题
+            </label>
             <input type="text" value={topic} onChange={e => setTopic(e.target.value)}
-              placeholder="输入演示主题"
-              className="w-full h-10 px-3 rounded-lg text-[14px] outline-none transition-colors"
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
-              onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-              onBlur={e => e.target.style.borderColor = 'var(--border-0)'} />
+              placeholder="例如：2024年Q3技术架构升级方案"
+              className="w-full h-11 px-4 rounded-xl text-[14px] outline-none transition-all"
+              style={{ background: 'var(--bg-1)', border: '1.5px solid var(--border-0)', color: 'var(--text-0)' }}
+              onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-dim)'; }}
+              onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; e.target.style.boxShadow = 'none'; }} />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[13px] font-medium mb-2" style={{ color: 'var(--text-1)' }}>描述</label>
+            <label className="flex items-center gap-1.5 text-[13px] font-medium mb-2" style={{ color: 'var(--text-0)' }}>
+              {Icon.edit} 详细描述
+            </label>
             <textarea value={description} onChange={e => setDescription(e.target.value)}
               placeholder="核心论点、关键数据、期望结论"
               rows={3}
-              className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none resize-none transition-colors"
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
-              onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-              onBlur={e => e.target.style.borderColor = 'var(--border-0)'} />
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none resize-none transition-all"
+              style={{ background: 'var(--bg-1)', border: '1.5px solid var(--border-0)', color: 'var(--text-0)' }}
+              onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-dim)'; }}
+              onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; e.target.style.boxShadow = 'none'; }} />
           </div>
 
           {/* Scenes */}
           <div>
-            <label className="block text-[13px] font-medium mb-2.5" style={{ color: 'var(--text-1)' }}>场景</label>
-            <div className="flex flex-wrap gap-1.5">
+            <label className="flex items-center gap-1.5 text-[13px] font-medium mb-2.5" style={{ color: 'var(--text-0)' }}>
+              {Icon.layers} 汇报场景
+            </label>
+            <div className="flex flex-wrap gap-2">
               {SCENES.map(s => {
                 const active = scenes.includes(s);
                 return (
                   <button key={s}
                     onClick={() => active ? setScenes(p => p.split(/[,，]/).filter(x => x.trim() !== s).join('，')) : setScenes(p => p ? `${p}，${s}` : s)}
-                    className="h-7 px-3 rounded-md text-[12px] transition-colors"
+                    className="h-8 px-3.5 rounded-lg text-[12px] font-medium transition-all"
                     style={{
-                      background: active ? 'var(--accent-dim)' : 'transparent',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border-0)'}`,
-                      color: active ? 'var(--accent)' : 'var(--text-2)',
+                      background: active ? 'var(--accent-light)' : 'var(--bg-1)',
+                      border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border-0)'}`,
+                      color: active ? 'var(--accent)' : 'var(--text-1)',
                     }}>
                     {s}
                   </button>
@@ -174,18 +248,22 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Pages + Theme row */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[13px] font-medium mb-2.5" style={{ color: 'var(--text-1)' }}>页数</label>
-              <div className="flex gap-1">
+          {/* Pages + Theme */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Page count */}
+            <div className="p-4 rounded-xl" style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)' }}>
+              <label className="flex items-center gap-1.5 text-[13px] font-medium mb-3" style={{ color: 'var(--text-0)' }}>
+                {Icon.file} 页数
+              </label>
+              <div className="flex gap-1.5">
                 {PAGE_OPTIONS.map(n => (
                   <button key={n} onClick={() => { setPageCount(n); setPreviewData(null); }}
-                    className="flex-1 h-9 rounded-md text-[13px] font-medium transition-colors"
+                    className="flex-1 h-9 rounded-lg text-[13px] font-semibold transition-all"
                     style={{
-                      background: pageCount === n ? 'var(--accent)' : 'transparent',
-                      color: pageCount === n ? '#fff' : 'var(--text-2)',
+                      background: pageCount === n ? palette.primary : 'var(--bg-0)',
+                      color: pageCount === n ? '#fff' : 'var(--text-1)',
                       border: pageCount === n ? 'none' : '1px solid var(--border-0)',
+                      boxShadow: pageCount === n ? `0 2px 8px ${palette.primary}30` : 'none',
                     }}>
                     {n}
                   </button>
@@ -193,58 +271,75 @@ export default function Home() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-[13px] font-medium mb-2.5" style={{ color: 'var(--text-1)' }}>风格</label>
-              <div className="flex gap-1.5">
+            {/* Theme selector */}
+            <div className="p-4 rounded-xl" style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)' }}>
+              <label className="flex items-center gap-1.5 text-[13px] font-medium mb-3" style={{ color: 'var(--text-0)' }}>
+                {Icon.palette} 设计风格
+              </label>
+              <div className="flex gap-1.5 mb-3">
                 {THEMES.map(t => (
-                  <button key={t.key} onClick={() => setTheme(t.key)} title={t.name}
-                    className="w-8 h-8 rounded-md flex items-center justify-center transition-colors"
+                  <button key={t.key} onClick={() => { setTheme(t.key); setPaletteIdx(0); }} title={t.name}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-bold transition-all"
                     style={{
-                      border: theme === t.key ? '2px solid var(--accent)' : '1px solid var(--border-0)',
-                      background: theme === t.key ? 'var(--accent-dim)' : 'transparent',
+                      border: theme === t.key ? `2px solid ${t.dot}` : '1.5px solid var(--border-0)',
+                      background: theme === t.key ? `${t.dot}12` : 'var(--bg-0)',
+                      color: theme === t.key ? t.dot : 'var(--text-2)',
+                      boxShadow: theme === t.key ? `0 0 0 3px ${t.dot}15` : 'none',
                     }}>
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: t.key === 'brand' ? customColor : t.dot }} />
+                    {t.icon}
                   </button>
                 ))}
               </div>
-              {theme === 'brand' && (
-                <div className="mt-2 flex gap-1.5">
-                  {['#8B5CF6', '#7C3AED', '#6D28D9', '#A855F7', '#EC4899', '#06B6D4'].map(c => (
-                    <button key={c} onClick={() => setCustomColor(c)}
-                      className="w-5 h-5 rounded-full transition-transform"
-                      style={{ background: c, outline: customColor === c ? '2px solid var(--text-0)' : 'none', outlineOffset: 2, transform: customColor === c ? 'scale(1.15)' : 'scale(1)' }} />
-                  ))}
-                </div>
-              )}
+
+              {/* Color palette: 5 options per theme */}
+              <div className="flex gap-1.5">
+                {THEME_PALETTES[theme].map((p, i) => (
+                  <button key={i} onClick={() => setPaletteIdx(i)} title={p.label}
+                    className="flex-1 h-8 rounded-lg flex items-center justify-center gap-1 transition-all"
+                    style={{
+                      border: paletteIdx === i ? `2px solid ${p.primary}` : '1px solid var(--border-0)',
+                      background: paletteIdx === i ? `${p.primary}08` : 'var(--bg-0)',
+                      boxShadow: paletteIdx === i ? `0 1px 4px ${p.primary}20` : 'none',
+                    }}>
+                    <div className="w-3 h-3 rounded-full" style={{ background: p.primary }} />
+                    <div className="w-2 h-2 rounded-full" style={{ background: p.accent }} />
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] mt-2 text-center" style={{ color: 'var(--text-2)' }}>
+                {palette.label} · 主色 + 强调色
+              </p>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-1">
             <button onClick={handlePreview} disabled={!topic.trim() || busy}
-              className="flex-1 h-11 rounded-lg text-[14px] font-medium transition-colors disabled:opacity-30"
-              style={{ background: 'transparent', border: '1px solid var(--border-1)', color: 'var(--text-1)' }}>
-              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '预览'}
+              className="flex-1 h-12 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
+              style={{ background: 'var(--bg-0)', border: '1.5px solid var(--border-1)', color: 'var(--text-0)' }}>
+              {Icon.search}
+              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '预览内容'}
             </button>
             <button onClick={handleGenerate} disabled={!topic.trim() || busy}
-              className="flex-1 h-11 rounded-lg text-[14px] font-medium text-white transition-colors disabled:opacity-30"
-              style={{ background: busy ? 'var(--bg-3)' : 'var(--accent)' }}>
-              {loading ? <span className="animate-pulse-slow">生成中...</span> : `下载 PPTX`}
+              className="flex-1 h-12 rounded-xl text-[14px] font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-30"
+              style={{ background: busy ? 'var(--text-2)' : palette.primary, boxShadow: busy ? 'none' : `0 4px 14px ${palette.primary}30` }}>
+              {Icon.download}
+              {loading ? <span className="animate-pulse-slow">生成中...</span> : '下载 PPTX'}
             </button>
           </div>
         </div>
 
-        {/* ── Right: Preview ── */}
+        {/* Right: Preview */}
         <div>
-          <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-xl p-4" style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)' }}>
-            {previewing && <Progress phase={progressPhase} done={slidesDone} total={pageCount} />}
+          <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl p-5" style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)' }}>
+            {previewing && <Progress phase={progressPhase} done={slidesDone} total={pageCount} accent={palette.primary} />}
             {previewData ? (
-              <Preview data={previewData} active={activeSlide} setActive={setActiveSlide}
-                theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy}
+              <PreviewPanel data={previewData} active={activeSlide} setActive={setActiveSlide}
+                theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
                 onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); }}
                 onSlidesReplace={sl => setPreviewData({ ...previewData, slides: sl })} />
             ) : !previewing ? (
-              <Structure layouts={layoutPresets[pageCount]} theme={currentTheme} count={pageCount} />
+              <Structure layouts={layoutPresets[pageCount]} theme={currentTheme} count={pageCount} accent={palette.primary} />
             ) : null}
           </div>
         </div>
@@ -256,7 +351,7 @@ export default function Home() {
 /* ── Progress ── */
 const STEPS = ['搜索', '生成', '检查', '优化'];
 
-function Progress({ phase, done, total }: { phase: string; done: number; total: number }) {
+function Progress({ phase, done, total, accent }: { phase: string; done: number; total: number; accent: string }) {
   const map: Record<string, number> = { research: 0, generating: 1, checking: 2, optimizing: 3, done: 4 };
   const idx = map[phase] ?? 0;
   const pct = phase === 'generating' ? 15 + Math.round((done / Math.max(total, 1)) * 60) :
@@ -267,34 +362,34 @@ function Progress({ phase, done, total }: { phase: string; done: number; total: 
       <div className="flex gap-3 mb-3">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium"
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold"
               style={{
-                background: idx > i ? 'var(--success)' : idx === i ? 'var(--accent)' : 'var(--bg-3)',
+                background: idx > i ? 'var(--success)' : idx === i ? accent : 'var(--bg-2)',
                 color: idx >= i ? '#fff' : 'var(--text-2)',
               }}>
               {idx > i ? '✓' : i + 1}
             </div>
-            <span className="text-[11px]" style={{ color: idx === i ? 'var(--text-0)' : 'var(--text-2)' }}>{s}</span>
+            <span className="text-[11px] font-medium" style={{ color: idx === i ? 'var(--text-0)' : 'var(--text-2)' }}>{s}</span>
           </div>
         ))}
       </div>
-      <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-3)' }}>
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-2)' }}>
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: accent }} />
       </div>
       <div className="flex justify-between mt-1.5">
-        <span className="text-[11px]" style={{ color: 'var(--text-2)' }}>
+        <span className="text-[11px]" style={{ color: 'var(--text-1)' }}>
           {phase === 'generating' && done > 0 ? `${done} / ${total} 页` : STEPS[idx] || '准备中'}
         </span>
-        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-2)' }}>{pct}%</span>
+        <span className="text-[11px] tabular-nums font-medium" style={{ color: accent }}>{pct}%</span>
       </div>
     </div>
   );
 }
 
 /* ── Preview Panel ── */
-function Preview({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace }: {
+function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent }: {
   data: PreviewResponse; active: number; setActive: (n: number) => void;
-  theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean;
+  theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean; accent: string;
   onSlideUpdate: (i: number, s: SlideContent) => void; onSlidesReplace: (s: SlideContent[]) => void;
 }) {
   const { slides, issues, score, research } = data;
@@ -330,38 +425,38 @@ function Preview({ data, active, setActive, theme, themeKey, loading, onGenerate
     finally { setGlobalEditing(false); }
   };
 
-  const inputStyle = { background: 'var(--bg-2)', border: '1px solid var(--border-0)', color: 'var(--text-0)' };
+  const inputCls = "flex-1 h-9 px-3 rounded-lg text-[12px] outline-none transition-all";
+  const inputSt = { background: 'var(--bg-0)', border: '1.5px solid var(--border-0)', color: 'var(--text-0)' };
 
   return (
     <>
-      {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[13px] font-medium flex-1">预览</span>
+        <span className="text-[13px] font-semibold flex-1" style={{ color: 'var(--text-0)' }}>内容预览</span>
         {score > 0 && (
-          <span className="text-[11px] font-medium tabular-nums" style={{ color: score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warn)' : 'var(--err)' }}>
-            {score}
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: score >= 80 ? '#ECFDF5' : score >= 50 ? '#FFFBEB' : '#FEF2F2',
+              color: score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warn)' : 'var(--err)' }}>
+            {score}分
           </span>
         )}
-        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-2)' }}>{active + 1}/{slides.length}</span>
+        <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{active + 1}/{slides.length}</span>
       </div>
 
-      {/* Research */}
       {research?.summary && (
-        <div className="mb-3 p-3 rounded-lg text-[11px] leading-relaxed" style={{ background: 'var(--bg-2)', color: 'var(--text-1)' }}>
+        <div className="mb-3 p-3 rounded-xl text-[11px] leading-relaxed" style={{ background: `${accent}06`, border: `1px solid ${accent}15`, color: 'var(--text-1)' }}>
           {research.summary}
           {research.keyStats?.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {research.keyStats.slice(0, 3).map((st, i) => (
-                <span key={i} className="px-2 py-0.5 rounded text-[10px]" style={{ background: 'var(--bg-3)', color: 'var(--text-2)' }}>{st.metric} {st.value}</span>
+                <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-medium" style={{ background: 'var(--bg-0)', color: accent }}>{st.metric} {st.value}</span>
               ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Issues */}
       {issues.length > 0 && (
-        <div className="mb-3 p-2.5 rounded-lg text-[10px]" style={{ background: 'var(--bg-2)' }}>
+        <div className="mb-3 p-2.5 rounded-xl text-[10px]" style={{ background: '#FFFBEB' }}>
           {issues.slice(0, 3).map((iss, i) => (
             <p key={i} style={{ color: 'var(--warn)' }}>P{iss.page}: {iss.issue}</p>
           ))}
@@ -372,18 +467,18 @@ function Preview({ data, active, setActive, theme, themeKey, loading, onGenerate
       <div className="flex gap-1 mb-3 overflow-x-auto pb-0.5">
         {slides.map((sl, i) => (
           <button key={i} onClick={() => setActive(i)}
-            className="shrink-0 w-9 h-6 rounded text-[8px] font-medium flex items-center justify-center transition-colors"
+            className="shrink-0 w-10 h-7 rounded-lg text-[9px] font-semibold flex items-center justify-center transition-all"
             style={{
-              background: i === active ? 'var(--accent)' : 'var(--bg-2)',
+              background: i === active ? accent : 'var(--bg-0)',
               color: i === active ? '#fff' : 'var(--text-2)',
               border: i === active ? 'none' : '1px solid var(--border-0)',
+              boxShadow: i === active ? `0 2px 6px ${accent}30` : 'none',
             }}>
             {i + 1}
           </button>
         ))}
       </div>
 
-      {/* Active slide */}
       {s && (
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
@@ -391,38 +486,36 @@ function Preview({ data, active, setActive, theme, themeKey, loading, onGenerate
               {TYPE_LABEL[s.type] || s.type} · {s.layout || 'full-text'}
             </span>
           </div>
-          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-0)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-0)' }}>
             <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
           </div>
-          {s.notes && (
-            <p className="mt-2 text-[10px] italic" style={{ color: 'var(--text-2)' }}>{s.notes}</p>
-          )}
+          {s.notes && <p className="mt-2 text-[10px] italic" style={{ color: 'var(--text-2)' }}>{s.notes}</p>}
         </div>
       )}
 
       {/* Nav */}
       <div className="flex gap-2 mt-3">
         <button onClick={() => setActive(Math.max(0, active - 1))} disabled={active === 0}
-          className="flex-1 h-8 rounded-md text-[12px] transition-colors disabled:opacity-20"
-          style={{ border: '1px solid var(--border-0)', color: 'var(--text-2)', background: 'transparent' }}>
-          ←
+          className="flex-1 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-20"
+          style={{ border: '1px solid var(--border-0)', color: 'var(--text-1)', background: 'var(--bg-0)' }}>
+          {Icon.left}
         </button>
         <button onClick={() => setActive(Math.min(slides.length - 1, active + 1))} disabled={active === slides.length - 1}
-          className="flex-1 h-8 rounded-md text-[12px] transition-colors disabled:opacity-20"
-          style={{ border: '1px solid var(--border-0)', color: 'var(--text-2)', background: 'transparent' }}>
-          →
+          className="flex-1 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-20"
+          style={{ border: '1px solid var(--border-0)', color: 'var(--text-1)', background: 'var(--bg-0)' }}>
+          {Icon.right}
         </button>
       </div>
 
-      {/* Edit: single page */}
+      {/* Edit: single */}
       <div className="mt-3 flex gap-1.5">
         <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
           placeholder="修改本页..." onKeyDown={e => e.key === 'Enter' && handleRetry()}
-          className="flex-1 h-8 px-2.5 rounded-md text-[12px] outline-none" style={inputStyle} />
+          className={inputCls} style={inputSt} />
         <button onClick={handleRetry} disabled={!retryInput.trim() || retrying}
-          className="h-8 px-3 rounded-md text-[12px] font-medium text-white disabled:opacity-30"
-          style={{ background: 'var(--accent)' }}>
-          {retrying ? '...' : '重试'}
+          className="h-9 px-3 rounded-lg text-[12px] font-medium text-white flex items-center gap-1 disabled:opacity-30"
+          style={{ background: accent }}>
+          {Icon.refresh} {retrying ? '...' : '重试'}
         </button>
       </div>
 
@@ -430,42 +523,41 @@ function Preview({ data, active, setActive, theme, themeKey, loading, onGenerate
       <div className="mt-1.5 flex gap-1.5">
         <input type="text" value={globalInput} onChange={e => setGlobalInput(e.target.value)}
           placeholder="全局修改..." onKeyDown={e => e.key === 'Enter' && handleGlobalEdit()}
-          className="flex-1 h-8 px-2.5 rounded-md text-[12px] outline-none" style={inputStyle} />
+          className={inputCls} style={inputSt} />
         <button onClick={handleGlobalEdit} disabled={!globalInput.trim() || globalEditing}
-          className="h-8 px-3 rounded-md text-[12px] font-medium disabled:opacity-30"
-          style={{ border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent' }}>
-          {globalEditing ? '...' : '编辑'}
+          className="h-9 px-3 rounded-lg text-[12px] font-medium flex items-center gap-1 disabled:opacity-30"
+          style={{ border: `1.5px solid ${accent}`, color: accent, background: 'var(--bg-0)' }}>
+          {Icon.edit} {globalEditing ? '...' : '编辑'}
         </button>
       </div>
 
-      {/* Download */}
       <button onClick={onGenerate} disabled={busy}
-        className="w-full mt-3 h-10 rounded-lg text-[13px] font-medium text-white disabled:opacity-30"
-        style={{ background: 'var(--accent)' }}>
-        {loading ? '生成中...' : '下载 PPTX'}
+        className="w-full mt-3 h-11 rounded-xl text-[13px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-30"
+        style={{ background: accent, boxShadow: `0 4px 14px ${accent}25` }}>
+        {Icon.download} {loading ? '生成中...' : '下载 PPTX'}
       </button>
     </>
   );
 }
 
 /* ── Structure Preview ── */
-function Structure({ layouts, theme, count }: {
-  layouts: { type: string; label: string }[]; theme: ThemeConfig; count: number;
+function Structure({ layouts, theme, count, accent }: {
+  layouts: { type: string; label: string }[]; theme: ThemeConfig; count: number; accent: string;
 }) {
   return (
     <>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[13px] font-medium">结构</span>
-        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-2)' }}>{count} 页</span>
+        <span className="text-[13px] font-semibold" style={{ color: 'var(--text-0)' }}>页面结构</span>
+        <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{count} 页</span>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-2">
         {layouts.map((layout, i) => (
-          <div key={i} className="slide-mini" style={{ background: i === 0 ? 'var(--accent)' : 'var(--bg-2)' }}>
+          <div key={i} className="slide-mini" style={{ background: i === 0 ? accent : 'var(--bg-0)' }}>
             <div className="p-1.5 h-full flex flex-col">
               {i === 0 ? (
                 <><div className="w-3/4 h-[2px] bg-white/70 rounded mb-0.5" /><div className="w-1/2 h-[2px] bg-white/40 rounded" /></>
               ) : (
-                <><div className="w-2/3 h-[2px] rounded mb-0.5" style={{ background: 'var(--accent)' }} /><div className="w-full h-[1px] rounded mb-0.5" style={{ background: 'var(--border-0)' }} /><div className="w-4/5 h-[1px] rounded" style={{ background: 'var(--border-0)' }} /></>
+                <><div className="w-2/3 h-[2px] rounded mb-0.5" style={{ background: accent }} /><div className="w-full h-[1px] rounded mb-0.5" style={{ background: 'var(--border-0)' }} /><div className="w-4/5 h-[1px] rounded" style={{ background: 'var(--border-0)' }} /></>
               )}
             </div>
             <div className="slide-label">{layout.label}</div>
@@ -473,7 +565,7 @@ function Structure({ layouts, theme, count }: {
         ))}
       </div>
       <p className="mt-4 text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
-        点击「预览」生成内容，确认后下载 PPTX。
+        点击「预览内容」生成咨询级内容，确认后下载 PPTX。
       </p>
     </>
   );
