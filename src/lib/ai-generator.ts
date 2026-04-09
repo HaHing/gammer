@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { PageCount, StyleTheme, SlideContent } from './types';
 import type { ResearchReport } from './research-engine';
 import { safeParseJSONArray } from './research-engine';
+import { themeDesigns } from './theme-design';
 
 const client = new Anthropic({
   baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
@@ -30,6 +31,7 @@ function getStructureGuide(pageCount: PageCount): string {
 }
 
 function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
+  const design = themeDesigns[theme] || themeDesigns.google;
   return `你是McKinsey/BCG级别的咨询顾问。生成严格${pageCount}页的专业演示文稿。
 
 ## 方法论
@@ -39,6 +41,10 @@ function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
 - 高密度：每页必须内容饱满，严禁留白。至少5条bullets或3个keyMetrics+3条bullets
 
 ## 风格：${STYLE_GUIDES[theme] || STYLE_GUIDES.google}
+
+## 主题偏好布局（优先使用）：${design.preferredLayouts.join(', ')}
+## 图表偏好：${design.chartPreference}（市场份额数据用pie/doughnut，趋势数据用line，对比数据用bar）
+## 指标展示风格：${design.metricsStyle}
 
 ## 结构：${getStructureGuide(pageCount)}
 

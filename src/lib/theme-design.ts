@@ -12,7 +12,13 @@ export interface ThemeDesign {
   bodySize: number;
   subtitleItalic: boolean;
   useGradient: boolean;
-  useCard?: boolean; // Haio-style card container for content slides
+  useCard?: boolean;
+  // New: per-theme layout preferences
+  preferredLayouts: string[];  // Ordered list of preferred layouts for this theme
+  metricsStyle: 'card' | 'inline' | 'large';  // How to render key metrics
+  insightStyle: 'bar' | 'box' | 'banner';  // How to render insights
+  chartPreference: 'bar' | 'pie' | 'doughnut' | 'line';  // Default chart type
+  sectionDivider: boolean;  // Show section divider between major sections
 }
 
 export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
@@ -27,6 +33,11 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 13,
     subtitleItalic: false,
     useGradient: false,
+    preferredLayouts: ['metrics-grid', 'chart-focus', 'big-number', 'two-column', 'icon-grid'],
+    metricsStyle: 'card',
+    insightStyle: 'bar',
+    chartPreference: 'bar',
+    sectionDivider: false,
   },
   amazon: {
     coverStyle: 'left-block',
@@ -39,6 +50,11 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 12,
     subtitleItalic: false,
     useGradient: false,
+    preferredLayouts: ['full-text', 'table-focus', 'two-column', 'metrics-grid', 'process-flow'],
+    metricsStyle: 'inline',
+    insightStyle: 'bar',
+    chartPreference: 'bar',
+    sectionDivider: false,
   },
   microsoft: {
     coverStyle: 'gradient-bottom',
@@ -51,6 +67,11 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 13,
     subtitleItalic: true,
     useGradient: true,
+    preferredLayouts: ['icon-grid', 'metrics-grid', 'chart-focus', 'three-column', 'process-flow'],
+    metricsStyle: 'card',
+    insightStyle: 'box',
+    chartPreference: 'bar',
+    sectionDivider: true,
   },
   deloitte: {
     coverStyle: 'split-diagonal',
@@ -63,6 +84,11 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 12,
     subtitleItalic: false,
     useGradient: false,
+    preferredLayouts: ['table-focus', 'chart-focus', 'two-column', 'metrics-grid', 'funnel'],
+    metricsStyle: 'card',
+    insightStyle: 'banner',
+    chartPreference: 'bar',
+    sectionDivider: true,
   },
   pwc: {
     coverStyle: 'full-bleed',
@@ -75,6 +101,11 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 13,
     subtitleItalic: true,
     useGradient: false,
+    preferredLayouts: ['metrics-grid', 'chart-focus', 'table-focus', 'two-column', 'quote-highlight'],
+    metricsStyle: 'large',
+    insightStyle: 'box',
+    chartPreference: 'line',
+    sectionDivider: true,
   },
   brand: {
     coverStyle: 'brand-gradient',
@@ -87,6 +118,11 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     bodySize: 14,
     subtitleItalic: false,
     useGradient: true,
+    preferredLayouts: ['big-number', 'icon-grid', 'chart-focus', 'quote-highlight', 'funnel'],
+    metricsStyle: 'large',
+    insightStyle: 'banner',
+    chartPreference: 'doughnut',
+    sectionDivider: false,
   },
   haio: {
     coverStyle: 'haio-dark',
@@ -100,5 +136,10 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     subtitleItalic: false,
     useGradient: false,
     useCard: true,
+    preferredLayouts: ['metrics-grid', 'table-focus', 'two-column', 'chart-focus', 'process-flow'],
+    metricsStyle: 'card',
+    insightStyle: 'bar',
+    chartPreference: 'bar',
+    sectionDivider: false,
   },
 };
