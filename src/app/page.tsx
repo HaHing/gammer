@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { PageCount, StyleTheme, SlideContent, ThemeConfig } from '@/lib/types';
 import { layoutPresets } from '@/lib/layouts';
 import { themes } from '@/lib/themes';
+import SlideRenderer from '@/components/SlideRenderer';
 
 const PAGE_OPTIONS: PageCount[] = [5, 10, 15, 20, 25];
 
@@ -329,75 +330,21 @@ function PreviewPanel({ data, activeSlide, setActiveSlide, theme, themeKey, load
         ))}
       </div>
 
-      {/* Active slide detail */}
+      {/* Active slide — visual render */}
       {s && (
-        <div className="border border-[var(--border)] rounded-lg overflow-hidden">
-          <div className="px-4 py-3" style={{ background: s.type === 'cover' ? theme.primary : theme.lightGray }}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-xs">{SLIDE_ICON[s.type] || '📝'}</span>
-              <span className="text-[10px] font-medium" style={{ color: s.type === 'cover' ? 'rgba(255,255,255,0.7)' : theme.secondary }}>
-                {s.type} {s.layout ? `· ${s.layout}` : ''}
-              </span>
-              {s.needsImage && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">纯渲染</span>
-              )}
+        <div>
+          <div className="mb-1 flex items-center gap-1.5">
+            <span className="text-xs">{SLIDE_ICON[s.type] || '📝'}</span>
+            <span className="text-[10px] font-medium" style={{ color: theme.secondary }}>
+              {s.type} · {s.layout || 'full-text'}
+            </span>
+          </div>
+          <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={activeSlide + 1} total={slides.length} />
+          {s.notes && (
+            <div className="mt-1.5 pt-1.5 border-t border-[var(--border)]">
+              <p className="text-[10px] text-[var(--text-secondary)] italic">🎤 {s.notes}</p>
             </div>
-            <h4 className="text-sm font-semibold" style={{ color: s.type === 'cover' ? '#fff' : theme.text }}>{s.title}</h4>
-            {s.subtitle && <p className="text-xs mt-0.5" style={{ color: s.type === 'cover' ? 'rgba(255,255,255,0.8)' : theme.secondary }}>{s.subtitle}</p>}
-          </div>
-
-          <div className="px-4 py-3 space-y-2">
-            {s.keyMetrics && s.keyMetrics.length > 0 && (
-              <div className="flex gap-2">
-                {s.keyMetrics.map((m, j) => (
-                  <div key={j} className="flex-1 text-center p-2 rounded" style={{ background: theme.lightGray }}>
-                    <div className="text-sm font-bold" style={{ color: theme.primary }}>{m.value}{m.unit ? ` ${m.unit}` : ''}</div>
-                    <div className="text-[9px] text-[var(--text-secondary)]">{m.label}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {s.insight && (
-              <div className="p-2 rounded text-[11px] font-medium" style={{ background: theme.lightGray, color: theme.primary, borderLeft: `3px solid ${theme.accent}` }}>
-                💡 {s.insight}
-              </div>
-            )}
-
-            {s.bullets && s.bullets.length > 0 && (
-              <ul className="space-y-1">
-                {s.bullets.map((b, j) => (
-                  <li key={j} className="flex gap-2 text-[11px]">
-                    <span className="shrink-0 w-1.5 h-1.5 rounded-full mt-1.5" style={{ background: theme.primary }} />
-                    <span className="text-[var(--text)]">{b}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {s.chartData && s.chartData.length > 0 && (
-              <div className="flex gap-1 items-end h-16">
-                {s.chartData.map((d, j) => {
-                  const max = Math.max(...s.chartData!.map(x => x.value));
-                  const h = max > 0 ? (d.value / max) * 100 : 0;
-                  return (
-                    <div key={j} className="flex-1 flex flex-col items-center gap-0.5">
-                      <span className="text-[8px] font-medium" style={{ color: theme.primary }}>{d.value}</span>
-                      <div className="w-full rounded-t" style={{ height: `${h}%`, background: j % 2 === 0 ? theme.primary : theme.accent, minHeight: 2 }} />
-                      <span className="text-[7px] text-[var(--text-secondary)] truncate w-full text-center">{d.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {s.source && <p className="text-[9px] text-[var(--text-secondary)] italic">📎 {s.source}</p>}
-            {s.notes && (
-              <div className="pt-2 border-t border-[var(--border)]">
-                <p className="text-[10px] text-[var(--text-secondary)] italic">🎤 {s.notes}</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
 
