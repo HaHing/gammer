@@ -300,7 +300,7 @@ export default function Home() {
               </label>
               <div className="flex gap-1.5 mb-3">
                 {PAGE_OPTIONS.map(n => (
-                  <button key={n} onClick={() => { setPageCount(n); setPreviewData(null); }}
+                  <button key={n} onClick={() => { setPageCount(n); setPreviewData(null); setOutline(null); }}
                     className="flex-1 h-9 rounded-lg text-[13px] font-semibold transition-all"
                     style={{
                       background: pageCount === n ? palette.primary : 'var(--bg-0)',
@@ -376,7 +376,7 @@ export default function Home() {
             </label>
             <div className="flex gap-2">
               <input type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)}
-                placeholder="粘贴 URL，自动提取内容作为参考"
+                placeholder="粘贴 URL（多个用逗号分隔）"
                 className="flex-1 h-11 px-4 rounded-xl text-[14px] outline-none transition-all"
                 style={{ background: 'var(--bg-1)', border: '1.5px solid var(--border-0)', color: 'var(--text-0)' }}
                 onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-dim)'; }}
@@ -385,12 +385,16 @@ export default function Home() {
                 if (!urlInput.trim() || urlLoading) return;
                 setUrlLoading(true);
                 try {
-                  const res = await fetch(urlInput);
-                  const html = await res.text();
-                  const doc = new DOMParser().parseFromString(html, 'text/html');
-                  const text = (doc.querySelector('article') || doc.body).textContent?.slice(0, 2000) || '';
-                  setDescription(prev => prev ? `${prev}\n\n参考内容：${text}` : `参考内容：${text}`);
-                  setUrlInput('');
+                  const urls = urlInput.split(/[,，]/).map(u => u.trim()).filter(Boolean);
+                  const res = await fetch('/api/fetch-url', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls }),
+                  });
+                  const { texts } = await res.json();
+                  if (texts?.length) {
+                    setDescription(prev => prev ? `${prev}\n\n参考内容：${texts.join('\n\n')}` : `参考内容：${texts.join('\n\n')}`);
+                    setUrlInput('');
+                  } else { alert('未能提取到内容'); }
                 } catch { alert('URL 提取失败'); }
                 finally { setUrlLoading(false); }
               }} disabled={!urlInput.trim() || urlLoading}

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import type { PageCount, StyleTheme, SlideContent, OutlineItem } from '@/lib/types';
 import { conductResearch } from '@/lib/research-engine';
+import type { ResearchReport } from '@/lib/research-engine';
 import { generateSlidesStreaming } from '@/lib/ai-generator';
 import { checkQuality } from '@/lib/quality-checker';
 import { optimizeSlides } from '@/lib/self-optimizer';
@@ -23,28 +24,26 @@ export async function POST(req: NextRequest) {
       try {
         // Phase 1: Research — reuse cached or conduct new
         send('status', { phase: 'research', message: '正在搜索权威数据源...' });
-        let research = researchId ? getCachedResearch(researchId) : undefined;
+        let research = researchId ? getCachedResearch(researchId) ?? null : null;
 
         if (!research) {
-          // If outline was edited, use outline titles as additional search context
           const outlineContext = outline ? outline.map(o => o.title).join('，') : '';
           research = await conductResearch(topic, `${description || ''} ${outlineContext}`, scenes || '', pageCount);
         } else if (outline) {
-          // Targeted re-search for user-modified outline items
+          // Deep copy to avoid mutating cache
+          const r = JSON.parse(JSON.stringify(research)) as ResearchReport;
           send('status', { phase: 'research', message: '针对大纲调整补充检索...' });
           const supplemental = await conductResearch(
             topic,
             outline.map(o => `${o.title}: ${o.bullets.join('; ')}`).join('\n'),
             scenes || '', pageCount
           );
-          // Merge: keep original + add new findings
-          const existingSources = new Set(research.results.flatMap(r => r.findings.map(f => f.fact)));
-          const newFindings = supplemental.results.flatMap(r => r.findings).filter(f => !existingSources.has(f.fact));
-          if (newFindings.length > 0) {
-            research.results[0].findings.push(...newFindings);
-          }
-          const existingStats = new Set(research.keyStats.map(s => s.metric));
-          supplemental.keyStats.forEach(s => { if (!existingStats.has(s.metric)) research!.keyStats.push(s); });
+          const existingSources = new Set(r.results.flatMap(x => x.findings.map(f => f.fact)));
+          const newFindings = supplemental.results.flatMap(x => x.findings).filter(f => !existingSources.has(f.fact));
+          if (newFindings.length > 0) r.results[0].findings.push(...newFindings);
+          const existingStats = new Set(r.keyStats.map(s => s.metric));
+          supplemental.keyStats.forEach(s => { if (!existingStats.has(s.metric)) r.keyStats.push(s); });
+          research = r;
         }
 
         send('research', {
