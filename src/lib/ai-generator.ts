@@ -205,3 +205,81 @@ export async function generateWithAI(
 
   throw new Error('AI 未返回有效的 JSON 数组');
 }
+
+// ─── Streaming generation: emits each slide as it's parsed ───
+
+function normalizeSlide(s: SlideContent, i: number, total: number): SlideContent {
+  s.needsImage = false;
+  if (!s.layout) s.layout = 'full-text';
+  if (!s.type) {
+    if (i === 0) s.type = 'cover';
+    else if (i === total - 1) s.type = 'summary';
+    else s.type = 'content';
+  }
+  if (i === 0 && s.type !== 'cover') s.type = 'cover';
+  if (s.keyMetrics) s.keyMetrics = s.keyMetrics.filter(m => m.label && m.value);
+  if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
+  if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
+  if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
+  if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
+    const parts = [`本页核心：${s.title || ''}`];
+    if (s.subtitle) parts.push(s.subtitle);
+    if (s.insight) parts.push(`关键洞察：${s.insight}`);
+    if (s.source) parts.push(`数据来源：${s.source}`);
+    s.notes = parts.join('。');
+  }
+  return s;
+}
+
+export async function generateSlidesStreaming(
+  topic: string, description: string, pageCount: PageCount,
+  theme: StyleTheme, scenes: string, research: ResearchReport | null,
+  onSlide: (slide: SlideContent) => void
+): Promise<void> {
+  const stream = client.messages.stream({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 30000,
+    system: buildSystemPrompt(theme, pageCount),
+    messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
+  });
+
+  let buffer = '';
+  let emitted = 0;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let objStart = -1;
+  let arrayStarted = false;
+
+  stream.on('text', (text) => {
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      buffer += ch;
+      const pos = buffer.length - 1;
+
+      if (esc) { esc = false; continue; }
+      if (ch === '\\' && inStr) { esc = true; continue; }
+      if (ch === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
+
+      if (!arrayStarted && ch === '[') { arrayStarted = true; continue; }
+      if (ch === '{' && depth === 0) { objStart = pos; depth = 1; continue; }
+      if (ch === '{') { depth++; continue; }
+      if (ch === '}') {
+        depth--;
+        if (depth === 0 && objStart >= 0) {
+          const objStr = buffer.substring(objStart, pos + 1);
+          objStart = -1;
+          try {
+            const slide = JSON.parse(objStr) as SlideContent;
+            normalizeSlide(slide, emitted, pageCount);
+            onSlide(slide);
+            emitted++;
+          } catch { /* partial or malformed, skip */ }
+        }
+      }
+    }
+  });
+
+  await stream.finalMessage();
+}

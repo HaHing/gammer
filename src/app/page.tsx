@@ -65,22 +65,57 @@ export default function Home() {
     if (!topic.trim()) return;
     setPreviewing(true);
     setPreviewData(null);
+    setActiveSlide(0);
     setPreviewStatus('正在搜索权威数据源...');
+
     try {
-      const t1 = setTimeout(() => setPreviewStatus('正在分析研究数据...'), 30000);
-      const t2 = setTimeout(() => setPreviewStatus('AI 正在生成专业内容...'), 60000);
-      const res = await fetch('/api/preview', {
+      const res = await fetch('/api/preview-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, description, pageCount, theme, scenes }),
       });
-      [t1, t2].forEach(clearTimeout);
-      if (!res.ok) throw new Error();
-      const data: PreviewResponse = await res.json();
-      setPreviewData(data);
-      setActiveSlide(0);
-    } catch {
-      alert('预览生成失败，请重试');
+      if (!res.ok || !res.body) throw new Error();
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      const streamSlides: SlideContent[] = [];
+      let streamResearch: PreviewResponse['research'] = undefined;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) { eventType = line.slice(7); continue; }
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            if (eventType === 'status') setPreviewStatus(data.message);
+            else if (eventType === 'research') streamResearch = data;
+            else if (eventType === 'slide') {
+              streamSlides.push(data.slide);
+              setPreviewData(prev => ({
+                previewId: prev?.previewId || '',
+                slides: [...streamSlides],
+                issues: prev?.issues || [],
+                score: 0,
+                research: streamResearch,
+              }));
+            } else if (eventType === 'done') {
+              setPreviewData({ ...data, research: streamResearch });
+            } else if (eventType === 'error') {
+              throw new Error(data.message);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (!previewData) alert(`预览生成失败: ${(e as Error).message || '请重试'}`);
     } finally {
       setPreviewing(false);
       setPreviewStatus('');
