@@ -121,7 +121,10 @@ function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideCo
       {layout === 'quote-highlight' && <QuoteBlock text={slide.insight || slide.subtitle || ''} source={slide.source} theme={theme} />}
       {layout === 'chart-focus' && slide.chartData && <BarChart data={slide.chartData} theme={theme} />}
       {layout === 'table-focus' && slide.tableData && <DataTable data={slide.tableData} theme={theme} />}
-      {!['two-column', 'three-column', 'big-number', 'quote-highlight'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
+      {layout === 'icon-grid' && <IconGrid bullets={slide.bullets || []} theme={theme} />}
+      {layout === 'process-flow' && <ProcessFlow bullets={slide.bullets || []} theme={theme} />}
+      {layout === 'funnel' && <Funnel bullets={slide.bullets || []} theme={theme} />}
+      {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
         <BulletList bullets={slide.bullets} theme={theme} design={design} />
       )}
 
@@ -326,6 +329,62 @@ function BarChart({ data, theme }: { data: NonNullable<SlideContent['chartData']
             <span className="text-[5px] font-bold" style={{ color: theme.primary }}>{d.value}</span>
             <div className="w-full rounded-t transition-all" style={{ height: `${h}%`, background: i % 2 === 0 ? theme.primary : theme.accent, minHeight: 2 }} />
             <span className="text-[4px] truncate w-full text-center" style={{ color: theme.secondary }}>{d.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function IconGrid({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
+  const cols = bullets.length <= 4 ? 2 : 3;
+  return (
+    <div className="mt-1" style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: '4px' }}>
+      {bullets.map((item, i) => {
+        const emojiMatch = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
+        const emoji = emojiMatch ? emojiMatch[1] : '●';
+        const text = emojiMatch ? item.slice(emojiMatch[0].length) : item;
+        return (
+          <div key={i} className="rounded px-1.5 py-1.5 text-center" style={{ background: theme.lightGray }}>
+            <div className="text-[12px]">{emoji}</div>
+            <div className="text-[6px] mt-0.5 leading-tight" style={{ color: theme.text }}>{text}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProcessFlow({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
+  return (
+    <div className="mt-2 relative">
+      <div className="absolute top-2 left-0 right-0 h-[2px] opacity-30" style={{ background: theme.primary }} />
+      <div className="flex justify-between relative">
+        {bullets.map((step, i) => (
+          <div key={i} className="flex flex-col items-center" style={{ width: `${100 / bullets.length}%` }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] font-bold text-white z-10" style={{ background: theme.primary }}>
+              {i + 1}
+            </div>
+            {i < bullets.length - 1 && (
+              <span className="absolute text-[8px] font-bold" style={{ color: theme.primary, left: `${(i + 0.7) * (100 / bullets.length)}%`, top: '0px' }}>→</span>
+            )}
+            <p className="text-[5px] text-center mt-1 px-0.5 leading-tight" style={{ color: theme.text }}>{step}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Funnel({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
+  return (
+    <div className="mt-1 space-y-0.5 flex flex-col items-center">
+      {bullets.map((item, i) => {
+        const ratio = 1 - (i / bullets.length) * 0.5;
+        const opacity = 0.3 + (i / bullets.length) * 0.5;
+        return (
+          <div key={i} className="rounded py-1 text-center text-[6px]" style={{ width: `${ratio * 90}%`, background: theme.primary, opacity, color: '#fff' }}>
+            {item}
           </div>
         );
       })}

@@ -42,8 +42,19 @@ function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
 
 ## 结构：${getStructureGuide(pageCount)}
 
-## 布局（layout）
-full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) | chart-focus(需chartData 3-8个+insight+3条bullets) | two-column(每列3-4条bullets) | three-column(每列2-3条bullets) | big-number(需keyMetrics 1个+4条bullets) | quote-highlight(insight+4条bullets) | table-focus(需tableData 4-8行+insight)
+## 布局（layout）— 智能选择指南
+full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) | chart-focus(需chartData 3-8个+insight+3条bullets) | two-column(每列3-4条bullets，适合对比/分类) | three-column(每列2-3条bullets，适合3个维度) | big-number(需keyMetrics 1个+4条bullets，适合震撼开场) | quote-highlight(insight+4条bullets，适合引用/结论) | table-focus(需tableData 4-8行+insight) | icon-grid(3-6个bullets，每条以emoji开头，适合功能/特性展示) | process-flow(3-6个bullets，按步骤顺序，适合流程/方法论) | funnel(3-5个bullets，从大到小排列，适合转化/筛选)
+
+### 布局选择规则
+- 有大量数字对比 → metrics-grid 或 big-number
+- 有时序/步骤 → process-flow 或 timeline type
+- 有分类/对比 → two-column 或 three-column
+- 有表格数据 → table-focus
+- 有图表数据 → chart-focus
+- 有核心引用/结论 → quote-highlight
+- 有功能/特性列表 → icon-grid
+- 有转化漏斗/筛选 → funnel
+- 通用内容 → full-text
 
 ## 字段
 - type：cover/toc/content/data/comparison/timeline/summary/action

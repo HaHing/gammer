@@ -225,6 +225,9 @@ function renderContentSlide(slide: PptxGenJS.Slide, content: SlideContent, theme
     case 'metrics-grid': renderMetricsGridLayout(slide, content, theme, design); break;
     case 'chart-focus': renderChartFocusLayout(slide, content, theme, design); break;
     case 'table-focus': renderTableFocusLayout(slide, content, theme, design); break;
+    case 'icon-grid': renderIconGridLayout(slide, content, theme, design); break;
+    case 'process-flow': renderProcessFlowLayout(slide, content, theme, design); break;
+    case 'funnel': renderFunnelLayout(slide, content, theme, design); break;
     default: renderDefaultLayout(slide, content, theme, design); break;
   }
   addFooter(slide, theme, design, pageNum, total);
@@ -355,6 +358,81 @@ function renderDefaultLayout(slide: PptxGenJS.Slide, content: SlideContent, them
   if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
   if (content.bullets?.length) curY = renderBullets(slide, content.bullets, theme, design, curY, CW);
   if (content.chartData?.length) renderChart(slide, content.chartData, theme, PAD, curY, CW, 2.2);
+}
+
+// ─── Icon Grid ───
+function renderIconGridLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  let curY = 1.1;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
+    curY += 0.45;
+  }
+  const items = content.bullets || [];
+  const cols = items.length <= 4 ? 2 : 3;
+  const rows = Math.ceil(items.length / cols);
+  const cellW = (CW - 0.3 * (cols - 1)) / cols;
+  const cellH = Math.min(1.6, (5.5 - curY) / rows);
+  items.forEach((item, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const cx = PAD + col * (cellW + 0.3), cy = curY + row * (cellH + 0.15);
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: cx, y: cy, w: cellW, h: cellH, fill: { color: c(theme.lightGray) }, rectRadius: 0.1 });
+    // Extract emoji prefix if present
+    const emojiMatch = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
+    const emoji = emojiMatch ? emojiMatch[1] : '●';
+    const text = emojiMatch ? item.slice(emojiMatch[0].length) : item;
+    slide.addText(emoji, { x: cx, y: cy + 0.15, w: cellW, h: 0.4, fontSize: 18, align: 'center' });
+    slide.addText(text, { x: cx + 0.15, y: cy + 0.6, w: cellW - 0.3, h: cellH - 0.75, fontSize: design.bodySize - 3, color: c(theme.text), fontFace: 'Microsoft YaHei', align: 'center', shrinkText: true });
+  });
+  if (content.insight) renderInsight(slide, content.insight, theme, curY + rows * (cellH + 0.15) + 0.1, CW);
+}
+
+// ─── Process Flow ───
+function renderProcessFlowLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  let curY = 1.1;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
+    curY += 0.5;
+  }
+  const steps = content.bullets || [];
+  const stepW = (CW - 0.2 * (steps.length - 1)) / steps.length;
+  // Arrow line
+  slide.addShape('rect' as PptxGenJS.ShapeType, { x: PAD, y: curY + 0.55, w: CW, h: 0.04, fill: { color: c(theme.primary), transparency: 40 } });
+  steps.forEach((step, i) => {
+    const sx = PAD + i * (stepW + 0.2);
+    // Circle number
+    slide.addShape('ellipse' as PptxGenJS.ShapeType, { x: sx + stepW / 2 - 0.25, y: curY + 0.3, w: 0.5, h: 0.5, fill: { color: c(theme.primary) } });
+    slide.addText(`${i + 1}`, { x: sx + stepW / 2 - 0.25, y: curY + 0.3, w: 0.5, h: 0.5, fontSize: 14, color: 'FFFFFF', align: 'center', valign: 'middle', bold: true });
+    // Arrow between steps
+    if (i < steps.length - 1) {
+      slide.addText('→', { x: sx + stepW - 0.05, y: curY + 0.35, w: 0.4, h: 0.4, fontSize: 16, color: c(theme.primary), align: 'center', bold: true });
+    }
+    // Step text
+    slide.addText(step, { x: sx, y: curY + 0.95, w: stepW, h: 1.2, fontSize: design.bodySize - 3, color: c(theme.text), fontFace: 'Microsoft YaHei', align: 'center', shrinkText: true });
+  });
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW);
+}
+
+// ─── Funnel ───
+function renderFunnelLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  let curY = 1.1;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
+    curY += 0.5;
+  }
+  const items = content.bullets || [];
+  const maxW = CW * 0.85;
+  const stepH = Math.min(0.8, (5.0 - curY) / items.length);
+  items.forEach((item, i) => {
+    const ratio = 1 - (i / items.length) * 0.5; // Narrows from 100% to 50%
+    const barW = maxW * ratio;
+    const barX = PAD + (CW - barW) / 2;
+    const opacity = Math.round(30 + (i / items.length) * 50);
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: barX, y: curY, w: barW, h: stepH - 0.08, fill: { color: c(theme.primary), transparency: opacity }, rectRadius: 0.06 });
+    slide.addText(item, { x: barX + 0.15, y: curY, w: barW - 0.3, h: stepH - 0.08, fontSize: design.bodySize - 2, color: c(theme.text), fontFace: 'Microsoft YaHei', align: 'center', valign: 'middle', shrinkText: true });
+    curY += stepH;
+  });
+  if (content.keyMetrics?.length) renderKeyMetrics(slide, content.keyMetrics, theme, design, curY + 0.2, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, curY + (content.keyMetrics?.length ? 1.7 : 0.2), CW);
 }
 
 // ─── Summary / Action ───
