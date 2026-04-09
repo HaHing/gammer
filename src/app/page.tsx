@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { PageCount, StyleTheme, SlideContent, ThemeConfig } from '@/lib/types';
+import type { PageCount, StyleTheme, SlideContent, ThemeConfig, OutlineItem } from '@/lib/types';
 import { layoutPresets } from '@/lib/layouts';
 import { themes } from '@/lib/themes';
 import SlideRenderer from '@/components/SlideRenderer';
@@ -119,10 +119,52 @@ export default function Home() {
   const [previewStatus, setPreviewStatus] = useState('');
   const [progressPhase, setProgressPhase] = useState('');
   const [slidesDone, setSlidesDone] = useState(0);
+  // Outline state
+  const [outline, setOutline] = useState<OutlineItem[] | null>(null);
+  const [researchId, setResearchId] = useState('');
+  const [outlineLoading, setOutlineLoading] = useState(false);
+  const [outlineResearch, setOutlineResearch] = useState<PreviewResponse['research']>(undefined);
+  // D3: Language
+  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  // History for undo
+  const [history, setHistory] = useState<PreviewResponse[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
+  // URL input
+  const [urlInput, setUrlInput] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
 
   const palette = THEME_PALETTES[theme][paletteIdx] || THEME_PALETTES[theme][0];
   const currentTheme: ThemeConfig = { ...themes[theme], primary: palette.primary, accent: palette.accent };
 
+  // D1: Push to history on preview data change
+  const pushHistory = (data: PreviewResponse) => {
+    const newHistory = history.slice(0, historyIdx + 1);
+    newHistory.push(data);
+    setHistory(newHistory);
+    setHistoryIdx(newHistory.length - 1);
+  };
+  const undo = () => { if (historyIdx > 0) { setHistoryIdx(historyIdx - 1); setPreviewData(history[historyIdx - 1]); } };
+  const redo = () => { if (historyIdx < history.length - 1) { setHistoryIdx(historyIdx + 1); setPreviewData(history[historyIdx + 1]); } };
+
+  // A1: Generate outline first
+  const handleOutline = async () => {
+    if (!topic.trim()) return;
+    setOutlineLoading(true); setOutline(null); setPreviewData(null);
+    try {
+      const res = await fetch('/api/outline', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, description: description + (lang === 'en' ? '\n\n[LANGUAGE: Generate all content in English]' : ''), pageCount, theme, scenes }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || '大纲生成失败');
+      const data = await res.json();
+      setOutline(data.outline);
+      setResearchId(data.researchId);
+      setOutlineResearch(data.research);
+    } catch (e) { alert((e as Error).message); }
+    finally { setOutlineLoading(false); }
+  };
+
+  // A3: Generate from confirmed outline
   const handlePreview = async () => {
     if (!topic.trim()) return;
     setPreviewing(true); setPreviewData(null); setActiveSlide(0);
@@ -130,7 +172,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/preview-stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, description, pageCount, theme, scenes }),
+        body: JSON.stringify({ topic, description: description + (lang === 'en' ? '\n\n[LANGUAGE: Generate all content in English]' : ''), pageCount, theme, scenes, outline, researchId }),
       });
       if (!res.ok || !res.body) throw new Error();
       const reader = res.body.getReader();
@@ -153,7 +195,7 @@ export default function Home() {
             else if (eventType === 'slide') {
               streamSlides.push(data.slide); setSlidesDone(streamSlides.length);
               setPreviewData(prev => ({ previewId: prev?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch }));
-            } else if (eventType === 'done') { setPreviewData({ ...data, research: streamResearch }); setProgressPhase('done'); }
+            } else if (eventType === 'done') { setPreviewData({ ...data, research: streamResearch }); setProgressPhase('done'); pushHistory({ ...data, research: streamResearch }); }
             else if (eventType === 'error') { throw new Error(data.message); }
           }
         }
@@ -249,14 +291,14 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Pages + Theme */}
+          {/* Pages + Theme + Language */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Page count */}
+            {/* Page count + Language */}
             <div className="p-4 rounded-xl" style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)' }}>
               <label className="flex items-center gap-1.5 text-[13px] font-medium mb-3" style={{ color: 'var(--text-0)' }}>
                 {Icon.file} 页数
               </label>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 mb-3">
                 {PAGE_OPTIONS.map(n => (
                   <button key={n} onClick={() => { setPageCount(n); setPreviewData(null); }}
                     className="flex-1 h-9 rounded-lg text-[13px] font-semibold transition-all"
@@ -267,6 +309,20 @@ export default function Home() {
                       boxShadow: pageCount === n ? `0 2px 8px ${palette.primary}30` : 'none',
                     }}>
                     {n}
+                  </button>
+                ))}
+              </div>
+              {/* D3: Language toggle */}
+              <div className="flex gap-1.5">
+                {(['zh', 'en'] as const).map(l => (
+                  <button key={l} onClick={() => setLang(l)}
+                    className="flex-1 h-8 rounded-lg text-[12px] font-medium transition-all"
+                    style={{
+                      background: lang === l ? `${palette.primary}12` : 'var(--bg-0)',
+                      border: lang === l ? `1.5px solid ${palette.primary}` : '1px solid var(--border-0)',
+                      color: lang === l ? palette.primary : 'var(--text-2)',
+                    }}>
+                    {l === 'zh' ? '中文' : 'English'}
                   </button>
                 ))}
               </div>
@@ -313,17 +369,54 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Actions */}
+          {/* D2: URL input */}
+          <div>
+            <label className="flex items-center gap-1.5 text-[13px] font-medium mb-2" style={{ color: 'var(--text-0)' }}>
+              {Icon.layers} 参考链接
+            </label>
+            <div className="flex gap-2">
+              <input type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)}
+                placeholder="粘贴 URL，自动提取内容作为参考"
+                className="flex-1 h-11 px-4 rounded-xl text-[14px] outline-none transition-all"
+                style={{ background: 'var(--bg-1)', border: '1.5px solid var(--border-0)', color: 'var(--text-0)' }}
+                onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-dim)'; }}
+                onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; e.target.style.boxShadow = 'none'; }} />
+              <button onClick={async () => {
+                if (!urlInput.trim() || urlLoading) return;
+                setUrlLoading(true);
+                try {
+                  const res = await fetch(urlInput);
+                  const html = await res.text();
+                  const doc = new DOMParser().parseFromString(html, 'text/html');
+                  const text = (doc.querySelector('article') || doc.body).textContent?.slice(0, 2000) || '';
+                  setDescription(prev => prev ? `${prev}\n\n参考内容：${text}` : `参考内容：${text}`);
+                  setUrlInput('');
+                } catch { alert('URL 提取失败'); }
+                finally { setUrlLoading(false); }
+              }} disabled={!urlInput.trim() || urlLoading}
+                className="h-11 px-4 rounded-xl text-[13px] font-medium text-white disabled:opacity-30"
+                style={{ background: palette.primary }}>
+                {urlLoading ? '...' : '提取'}
+              </button>
+            </div>
+          </div>
+
+          {/* Actions: 3-step flow */}
           <div className="flex gap-3 pt-1">
-            <button onClick={handlePreview} disabled={!topic.trim() || busy}
+            <button onClick={handleOutline} disabled={!topic.trim() || busy || outlineLoading}
               className="flex-1 h-12 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
               style={{ background: 'var(--bg-0)', border: '1.5px solid var(--border-1)', color: 'var(--text-0)' }}>
               {Icon.search}
-              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '预览内容'}
+              {outlineLoading ? <span className="animate-pulse-slow">生成大纲中...</span> : '生成大纲'}
             </button>
-            <button onClick={handleGenerate} disabled={!topic.trim() || busy}
+            <button onClick={handlePreview} disabled={!topic.trim() || busy || !outline}
+              className="flex-1 h-12 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
+              style={{ background: 'var(--bg-0)', border: `1.5px solid ${outline ? palette.primary : 'var(--border-0)'}`, color: outline ? palette.primary : 'var(--text-2)' }}>
+              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '确认生成'}
+            </button>
+            <button onClick={handleGenerate} disabled={!topic.trim() || busy || !previewData}
               className="flex-1 h-12 rounded-xl text-[14px] font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-30"
-              style={{ background: busy ? 'var(--text-2)' : palette.primary, boxShadow: busy ? 'none' : `0 4px 14px ${palette.primary}30` }}>
+              style={{ background: previewData ? palette.primary : 'var(--text-2)', boxShadow: previewData ? `0 4px 14px ${palette.primary}30` : 'none' }}>
               {Icon.download}
               {loading ? <span className="animate-pulse-slow">生成中...</span> : '下载 PPTX'}
             </button>
@@ -337,8 +430,11 @@ export default function Home() {
             {previewData ? (
               <PreviewPanel data={previewData} active={activeSlide} setActive={setActiveSlide}
                 theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
-                onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); }}
-                onSlidesReplace={sl => setPreviewData({ ...previewData, slides: sl })} />
+                onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); pushHistory(u); }}
+                onSlidesReplace={sl => { const u = { ...previewData, slides: sl }; setPreviewData(u); pushHistory(u); }}
+                canUndo={historyIdx > 0} canRedo={historyIdx < history.length - 1} onUndo={undo} onRedo={redo} />
+            ) : outline && !previewing ? (
+              <OutlineEditor outline={outline} setOutline={setOutline} accent={palette.primary} research={outlineResearch} />
             ) : !previewing ? (
               <Structure layouts={layoutPresets[pageCount]} theme={currentTheme} count={pageCount} accent={palette.primary} />
             ) : null}
@@ -388,10 +484,11 @@ function Progress({ phase, done, total, accent }: { phase: string; done: number;
 }
 
 /* ── Preview Panel ── */
-function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent }: {
+function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent, canUndo, canRedo, onUndo, onRedo }: {
   data: PreviewResponse; active: number; setActive: (n: number) => void;
   theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean; accent: string;
   onSlideUpdate: (i: number, s: SlideContent) => void; onSlidesReplace: (s: SlideContent[]) => void;
+  canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void;
 }) {
   const { slides, issues, score, research } = data;
   const s = slides[active];
@@ -433,6 +530,13 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
     <>
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[13px] font-semibold flex-1" style={{ color: 'var(--text-0)' }}>内容预览</span>
+        {/* D1: Undo/Redo */}
+        <button onClick={onUndo} disabled={!canUndo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20" style={{ border: '1px solid var(--border-0)' }} title="撤销">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <button onClick={onRedo} disabled={!canRedo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20" style={{ border: '1px solid var(--border-0)' }} title="重做">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
         {score > 0 && (
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
             style={{ background: score >= 80 ? '#ECFDF5' : score >= 50 ? '#FFFBEB' : '#FEF2F2',
@@ -487,10 +591,23 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
               {TYPE_LABEL[s.type] || s.type} · {s.layout || 'full-text'}
             </span>
           </div>
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-0)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-0)', aspectRatio: '16/9' }}>
             <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
           </div>
           {s.notes && <p className="mt-2 text-[10px] italic" style={{ color: 'var(--text-2)' }}>{s.notes}</p>}
+          {/* C2: Source provenance badge */}
+          {s.source && (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                style={{
+                  background: s.sourceType === 'official' ? '#ECFDF5' : s.sourceType === 'research' ? '#EFF6FF' : '#FFFBEB',
+                  color: s.sourceType === 'official' ? 'var(--success)' : s.sourceType === 'research' ? '#2563EB' : 'var(--warn)',
+                }}>
+                {s.sourceType === 'official' ? '权威来源' : s.sourceType === 'research' ? '研究数据' : 'AI 推断'}
+              </span>
+              <span className="text-[9px]" style={{ color: 'var(--text-2)' }}>{s.source}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -537,6 +654,85 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
         style={{ background: accent, boxShadow: `0 4px 14px ${accent}25` }}>
         {Icon.download} {loading ? '生成中...' : '下载 PPTX'}
       </button>
+    </>
+  );
+}
+
+/* ── Outline Editor ── */
+function OutlineEditor({ outline, setOutline, accent, research }: {
+  outline: OutlineItem[]; setOutline: (o: OutlineItem[]) => void; accent: string;
+  research?: PreviewResponse['research'];
+}) {
+  const update = (idx: number, field: keyof OutlineItem, value: string | string[]) => {
+    const next = [...outline];
+    next[idx] = { ...next[idx], [field]: value };
+    setOutline(next);
+  };
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...outline];
+    const target = idx + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setOutline(next);
+  };
+  const remove = (idx: number) => { if (outline.length > 3) setOutline(outline.filter((_, i) => i !== idx)); };
+  const add = (idx: number) => {
+    const next = [...outline];
+    next.splice(idx + 1, 0, { title: '新页面', bullets: ['要点1'], type: 'content', layout: 'full-text' });
+    setOutline(next);
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[13px] font-semibold" style={{ color: 'var(--text-0)' }}>大纲编辑</span>
+        <span className="text-[11px] font-medium" style={{ color: 'var(--text-2)' }}>{outline.length} 页</span>
+      </div>
+
+      {research?.summary && (
+        <div className="mb-3 p-2.5 rounded-lg text-[10px] leading-relaxed" style={{ background: `${accent}06`, border: `1px solid ${accent}15`, color: 'var(--text-1)' }}>
+          {research.summary.slice(0, 150)}...
+        </div>
+      )}
+
+      <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+        {outline.map((item, i) => (
+          <div key={i} className="p-3 rounded-xl transition-all" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[10px] font-bold w-5 h-5 rounded flex items-center justify-center text-white" style={{ background: accent }}>{i + 1}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{item.type}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{item.layout}</span>
+              <div className="flex-1" />
+              <button onClick={() => move(i, -1)} disabled={i === 0} className="text-[10px] px-1 disabled:opacity-20" style={{ color: accent }}>↑</button>
+              <button onClick={() => move(i, 1)} disabled={i === outline.length - 1} className="text-[10px] px-1 disabled:opacity-20" style={{ color: accent }}>↓</button>
+              <button onClick={() => add(i)} className="text-[10px] px-1" style={{ color: 'var(--success)' }}>+</button>
+              <button onClick={() => remove(i)} disabled={outline.length <= 3} className="text-[10px] px-1 disabled:opacity-20" style={{ color: 'var(--err)' }}>×</button>
+            </div>
+            <input value={item.title} onChange={e => update(i, 'title', e.target.value)}
+              className="w-full text-[12px] font-medium px-2 py-1 rounded outline-none mb-1"
+              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
+            {item.bullets.map((b, j) => (
+              <div key={j} className="flex gap-1 mb-0.5">
+                <span className="text-[9px] mt-1" style={{ color: accent }}>•</span>
+                <input value={b} onChange={e => {
+                  const newBullets = [...item.bullets]; newBullets[j] = e.target.value;
+                  update(i, 'bullets', newBullets);
+                }}
+                  className="flex-1 text-[11px] px-1.5 py-0.5 rounded outline-none"
+                  style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }} />
+                <button onClick={() => update(i, 'bullets', item.bullets.filter((_, k) => k !== j))}
+                  className="text-[9px] px-1" style={{ color: 'var(--text-2)' }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => update(i, 'bullets', [...item.bullets, '新要点'])}
+              className="text-[9px] mt-0.5" style={{ color: accent }}>+ 添加要点</button>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-3 text-[11px]" style={{ color: 'var(--text-2)' }}>
+        编辑大纲后点击「确认生成」，AI 将根据调整后的大纲重新检索数据并生成内容。
+      </p>
     </>
   );
 }

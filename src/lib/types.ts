@@ -29,6 +29,13 @@ export interface ChartDataItem {
 
 export type ChartType = 'bar' | 'pie' | 'doughnut' | 'line';
 
+export interface OutlineItem {
+  title: string;
+  bullets: string[];
+  type: SlideType;
+  layout: SlideLayout;
+}
+
 export interface SlideContent {
   type: SlideType;
   layout: SlideLayout;
@@ -40,6 +47,7 @@ export interface SlideContent {
   chartType?: ChartType;
   insight?: string;
   source?: string;
+  sourceType?: 'official' | 'research' | 'inferred'; // C2: data provenance
   notes?: string;
   needsImage?: boolean; // deprecated, always false
   tableData?: { headers: string[]; rows: string[][] };

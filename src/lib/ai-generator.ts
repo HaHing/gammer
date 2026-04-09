@@ -38,6 +38,8 @@ function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount): string {
 - 金字塔原理：结论先行→论据→数据佐证
 - So What：每页标题必须是有观点的结论句（如"市场突破万亿，三朵云格局已定"）
 - 数据说话：每个论点必须有研究数据支撑，严禁编造
+- 权威来源：所有数据必须来自权威机构和官方来源（如Gartner、IDC、McKinsey、BCG、Forrester、Statista、各国政府统计局、上市公司财报、行业协会报告等），严禁引用博客、论坛、自媒体
+- 来源标注：每页的source字段必须标注具体机构名+报告名/年份，如"IDC 2024年全球云计算追踪报告"
 - 高密度：每页必须内容饱满，严禁留白。至少5条bullets或3个keyMetrics+3条bullets
 
 ## 风格：${STYLE_GUIDES[theme] || STYLE_GUIDES.google}
@@ -216,6 +218,13 @@ export async function generateWithAI(
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
         if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
         if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
+        // C2: Auto-detect source type
+        if (s.source) {
+          const official = /gartner|idc|mckinsey|bcg|forrester|statista|deloitte|pwc|kpmg|ey|bain|accenture|政府|统计局|财报|annual report|白皮书/i;
+          s.sourceType = official.test(s.source) ? 'official' : 'research';
+        } else if (s.keyMetrics?.length || s.chartData?.length) {
+          s.sourceType = 'inferred';
+        }
         correctLayout(s); // auto-fix layout vs content mismatch
         // Auto-fill missing or empty notes
         if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
@@ -266,6 +275,12 @@ function normalizeSlide(s: SlideContent, i: number, total: number): SlideContent
   if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
   if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
   if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
+  if (s.source) {
+    const official = /gartner|idc|mckinsey|bcg|forrester|statista|deloitte|pwc|kpmg|ey|bain|accenture|政府|统计局|财报|annual report|白皮书/i;
+    s.sourceType = official.test(s.source) ? 'official' : 'research';
+  } else if (s.keyMetrics?.length || s.chartData?.length) {
+    s.sourceType = 'inferred';
+  }
   correctLayout(s);
   if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
     const parts = [`本页核心：${s.title || ''}`];
