@@ -68,6 +68,12 @@ export async function POST(req: NextRequest) {
           (slide) => { slides.push(slide); send('slide', { index: slideIndex++, slide }); }
         );
 
+        // Enforce page count: truncate or pad
+        if (slides.length > pageCount) slides = slides.slice(0, pageCount);
+        while (slides.length < pageCount) {
+          slides.push({ type: 'content', layout: 'full-text', title: `补充内容 ${slides.length + 1}`, bullets: ['待补充'], needsImage: false });
+        }
+
         // Phase 3: Quality check
         send('status', { phase: 'checking', message: '质量检查中...' });
         let { issues, score } = checkQuality(slides);

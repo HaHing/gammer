@@ -561,6 +561,7 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
   const [retrying, setRetrying] = useState(false);
   const [globalInput, setGlobalInput] = useState('');
   const [globalEditing, setGlobalEditing] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
 
   const handleRetry = async () => {
     if (!retryInput.trim() || retrying) return;
@@ -652,11 +653,14 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
       {s && (
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-2)' }}>
+            <span className="text-[11px] font-medium flex-1" style={{ color: 'var(--text-2)' }}>
               {TYPE_LABEL[s.type] || s.type} · {s.layout || 'full-text'}
             </span>
+            <button onClick={() => setZoomed(true)} className="w-6 h-6 rounded flex items-center justify-center" style={{ border: '1px solid var(--border-0)' }} title="放大预览">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
           </div>
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-0)', aspectRatio: '16/9' }}>
+          <div className="rounded-xl overflow-hidden cursor-pointer" style={{ border: '1px solid var(--border-0)' }} onClick={() => setZoomed(true)}>
             <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
           </div>
           {s.notes && <p className="mt-2 text-[10px] italic" style={{ color: 'var(--text-2)' }}>{s.notes}</p>}
@@ -719,6 +723,31 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
         style={{ background: accent, boxShadow: `0 4px 14px ${accent}25` }}>
         {Icon.download} {loading ? '生成中...' : '下载 PPTX'}
       </button>
+
+      {/* Zoom Modal */}
+      {zoomed && s && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setZoomed(false)}>
+          <div className="relative w-[90vw] max-w-[960px]" onClick={e => e.stopPropagation()}>
+            <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
+            {/* Nav buttons */}
+            <button onClick={() => { setActive(Math.max(0, active - 1)); }} disabled={active === 0}
+              className="absolute left-[-48px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20"
+              style={{ background: 'rgba(0,0,0,0.5)' }}>
+              {Icon.left}
+            </button>
+            <button onClick={() => { setActive(Math.min(slides.length - 1, active + 1)); }} disabled={active === slides.length - 1}
+              className="absolute right-[-48px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20"
+              style={{ background: 'rgba(0,0,0,0.5)' }}>
+              {Icon.right}
+            </button>
+            {/* Close + page indicator */}
+            <div className="absolute -top-10 left-0 right-0 flex items-center justify-between">
+              <span className="text-white text-[13px] font-medium">{active + 1} / {slides.length}</span>
+              <button onClick={() => setZoomed(false)} className="text-white text-[13px]">ESC 关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

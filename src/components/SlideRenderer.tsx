@@ -200,10 +200,10 @@ function SlideFrame({ children, theme, design, pageNum, total }: { children: Rea
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0">
-        {design.footerStyle === 'full-bar' && <div className="h-[2px]" style={{ background: theme.primary }} />}
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+        {design.footerStyle === 'full-bar' && <div className="h-[1px] opacity-50" style={{ background: theme.primary }} />}
         <div className="px-[5%] py-0.5 flex justify-end">
-          <span className="text-[5px]" style={{ color: theme.secondary }}>{pageNum} / {total}</span>
+          <span className="text-[4px] opacity-60" style={{ color: theme.secondary }}>{pageNum} / {total}</span>
         </div>
       </div>
     </div>
