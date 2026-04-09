@@ -7,6 +7,7 @@ import { themeDesigns, ThemeDesign } from './theme-design';
 const W = 13.33;
 const PAD = 0.7;       // left/right padding
 const CW = W - PAD * 2; // content width = 11.93"
+const MAX_Y = 6.5;     // stop rendering before footer zone (footer starts ~7.1)
 
 function c(hex: string): string {
   const s = hex.replace('#', '');
@@ -111,6 +112,7 @@ function renderToc(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeCo
   const items = content.bullets || [];
   items.forEach((item, i) => {
     const y = 1.3 + i * 0.65;
+    if (y + 0.55 > MAX_Y) return;
     slide.addShape('roundRect' as PptxGenJS.ShapeType, {
       x: PAD, y, w: CW, h: 0.55,
       fill: { color: i % 2 === 0 ? c(theme.lightGray) : 'FFFFFF' }, rectRadius: 0.06,
@@ -174,16 +176,17 @@ function renderInsight(slide: PptxGenJS.Slide, insight: string, theme: ThemeConf
 function renderBullets(slide: PptxGenJS.Slide, bullets: string[], theme: ThemeConfig, design: ThemeDesign, y: number, w: number, x: number = PAD): number {
   const bulletChars: Record<string, string> = { circle: '●', square: '■', dash: '—', arrow: '▸', number: '' };
   const char = bulletChars[design.bulletStyle] || '●';
-  const charsPerLine = Math.floor((w - 0.35) * 5.5); // ~5.5 chars per inch at bodySize-1
-  bullets.forEach((b, i) => {
+  const charsPerLine = Math.floor((w - 0.35) * 5.5);
+  for (let i = 0; i < bullets.length; i++) {
+    if (y >= MAX_Y) break; // boundary check
+    const b = bullets[i];
     const lines = Math.max(1, Math.ceil(b.length / charsPerLine));
-    const rowH = Math.max(0.38, lines * 0.22);
-    const by = y;
+    const rowH = Math.min(Math.max(0.38, lines * 0.22), MAX_Y - y); // clamp height
     const prefix = design.bulletStyle === 'number' ? `${i + 1}.` : char;
-    slide.addText(prefix, { x, y: by, w: 0.35, h: rowH, fontSize: design.bulletStyle === 'number' ? 11 : 8, color: c(theme.primary), bold: true, align: 'center', valign: 'top' });
-    slide.addText(b, { x: x + 0.35, y: by, w: w - 0.35, h: rowH, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true, valign: 'top' });
+    slide.addText(prefix, { x, y, w: 0.35, h: rowH, fontSize: design.bulletStyle === 'number' ? 11 : 8, color: c(theme.primary), bold: true, align: 'center', valign: 'top' });
+    slide.addText(b, { x: x + 0.35, y, w: w - 0.35, h: rowH, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true, valign: 'top' });
     y += rowH + 0.06;
-  });
+  }
   return y;
 }
 
@@ -356,9 +359,9 @@ function renderMetricsGridLayout(slide: PptxGenJS.Slide, content: SlideContent, 
     slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
     curY += 0.45;
   }
-  if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
-  if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
+  if (curY < MAX_Y && content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
+  if (curY < MAX_Y && content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
+  if (curY < MAX_Y && content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
 }
 
 // ─── Table renderer ───
@@ -387,10 +390,13 @@ function renderTableFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, t
     curY += 0.4;
   }
   if (content.tableData?.headers?.length) {
-    curY = renderTable(slide, content.tableData, theme, design, PAD, curY, CW);
+    // Limit rows to fit within available space
+    const maxRows = Math.floor((MAX_Y - curY - 1.0) / 0.38);
+    const limitedData = { headers: content.tableData.headers, rows: content.tableData.rows.slice(0, Math.max(3, maxRows)) };
+    curY = renderTable(slide, limitedData, theme, design, PAD, curY, CW);
   }
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
-  if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
+  if (curY < MAX_Y && content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
+  if (curY < MAX_Y && content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
 }
 
 function renderChartFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
@@ -399,9 +405,12 @@ function renderChartFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, t
     slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
     curY += 0.4;
   }
-  if (content.chartData?.length) { renderChart(slide, content.chartData, theme, 1.5, curY, CW - 1.6, 3.0, content.chartType); curY += 3.2; }
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
-  if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
+  if (content.chartData?.length) {
+    const chartH = Math.min(3.0, MAX_Y - curY - 1.5); // leave room for insight+bullets
+    if (chartH > 1.0) { renderChart(slide, content.chartData, theme, 1.5, curY, CW - 1.6, chartH, content.chartType); curY += chartH + 0.2; }
+  }
+  if (curY < MAX_Y && content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
+  if (curY < MAX_Y && content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
 }
 
 function renderDefaultLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
@@ -410,10 +419,10 @@ function renderDefaultLayout(slide: PptxGenJS.Slide, content: SlideContent, them
     slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), italic: design.subtitleItalic, fontFace: 'Microsoft YaHei' });
     curY += 0.42;
   }
-  if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
-  if (content.bullets?.length) curY = renderBullets(slide, content.bullets, theme, design, curY, CW);
-  if (content.chartData?.length) renderChart(slide, content.chartData, theme, PAD, curY, CW, 2.2, content.chartType);
+  if (curY < MAX_Y && content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
+  if (curY < MAX_Y && content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
+  if (curY < MAX_Y && content.bullets?.length) curY = renderBullets(slide, content.bullets, theme, design, curY, CW);
+  if (curY < MAX_Y && content.chartData?.length) renderChart(slide, content.chartData, theme, PAD, curY, CW, Math.min(2.2, MAX_Y - curY), content.chartType);
 }
 
 // ─── Icon Grid ───
@@ -427,7 +436,7 @@ function renderIconGridLayout(slide: PptxGenJS.Slide, content: SlideContent, the
   const cols = items.length <= 4 ? 2 : 3;
   const rows = Math.ceil(items.length / cols);
   const cellW = (CW - 0.3 * (cols - 1)) / cols;
-  const cellH = Math.min(1.6, (5.5 - curY) / rows);
+  const cellH = Math.min(1.6, (MAX_Y - curY - 0.3) / rows);
   items.forEach((item, i) => {
     const col = i % cols, row = Math.floor(i / cols);
     const cx = PAD + col * (cellW + 0.3), cy = curY + row * (cellH + 0.15);
@@ -477,8 +486,9 @@ function renderFunnelLayout(slide: PptxGenJS.Slide, content: SlideContent, theme
   }
   const items = content.bullets || [];
   const maxW = CW * 0.85;
-  const stepH = Math.min(0.8, (5.0 - curY) / items.length);
+  const stepH = Math.min(0.8, (MAX_Y - curY - 0.5) / Math.max(items.length, 1));
   items.forEach((item, i) => {
+    if (curY >= MAX_Y) return;
     const ratio = 1 - (i / items.length) * 0.5; // Narrows from 100% to 50%
     const barW = maxW * ratio;
     const barX = PAD + (CW - barW) / 2;
@@ -498,8 +508,8 @@ function renderSummary(slide: PptxGenJS.Slide, content: SlideContent, theme: The
   slide.addShape('rect' as PptxGenJS.ShapeType, { x: PAD, y: 0.98, w: 1.5, h: 0.04, fill: { color: c(theme.accent) } });
   let curY = 1.2;
   if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
-  if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
+  if (curY < MAX_Y && content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
+  if (curY < MAX_Y && content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
   addFooter(slide, theme, design, pageNum, total);
 }
 
