@@ -63,6 +63,7 @@ full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) 
 - bullets：每条80-150字，必须含具体数字+分析洞察+因果逻辑，不要泛泛而谈。每页至少4条
 - keyMetrics：[{label,value,unit,trend}]，数字必须来自研究数据
 - chartData：[{label,value(数字)}]，数据必须真实
+- chartType：bar(默认)/pie/doughnut/line — 市场份额用pie/doughnut，趋势用line，对比用bar
 - tableData：{headers:string[], rows:string[][]}，4-8行详细数据
 - insight：核心洞察一句话，必须含数据
 - source：数据来源机构名

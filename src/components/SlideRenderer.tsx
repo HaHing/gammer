@@ -119,7 +119,7 @@ function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideCo
       {layout === 'three-column' && <ThreeColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />}
       {layout === 'big-number' && slide.keyMetrics?.[0] && <BigNumber metric={slide.keyMetrics[0]} theme={theme} />}
       {layout === 'quote-highlight' && <QuoteBlock text={slide.insight || slide.subtitle || ''} source={slide.source} theme={theme} />}
-      {layout === 'chart-focus' && slide.chartData && <BarChart data={slide.chartData} theme={theme} />}
+      {layout === 'chart-focus' && slide.chartData && <ChartView data={slide.chartData} theme={theme} chartType={slide.chartType} />}
       {layout === 'table-focus' && slide.tableData && <DataTable data={slide.tableData} theme={theme} />}
       {layout === 'icon-grid' && <IconGrid bullets={slide.bullets || []} theme={theme} />}
       {layout === 'process-flow' && <ProcessFlow bullets={slide.bullets || []} theme={theme} />}
@@ -129,7 +129,7 @@ function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideCo
       )}
 
       {/* Chart (non chart-focus) */}
-      {layout !== 'chart-focus' && slide.chartData && slide.chartData.length > 0 && <BarChart data={slide.chartData} theme={theme} />}
+      {layout !== 'chart-focus' && slide.chartData && slide.chartData.length > 0 && <ChartView data={slide.chartData} theme={theme} chartType={slide.chartType} />}
 
       {/* Table (non table-focus) */}
       {layout !== 'table-focus' && slide.tableData?.headers && <DataTable data={slide.tableData} theme={theme} />}
@@ -314,6 +314,52 @@ function QuoteBlock({ text, source, theme }: { text: string; source?: string; th
       <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded" style={{ background: theme.primary }} />
       <p className="text-[8px] italic pl-3 leading-relaxed" style={{ color: theme.text }}>{text}</p>
       {source && <p className="text-[6px] text-right mt-1 italic" style={{ color: theme.secondary }}>— {source}</p>}
+    </div>
+  );
+}
+
+function ChartView({ data, theme, chartType }: { data: NonNullable<SlideContent['chartData']>; theme: ThemeConfig; chartType?: string }) {
+  if (chartType === 'pie' || chartType === 'doughnut') return <PieChart data={data} theme={theme} isDoughnut={chartType === 'doughnut'} />;
+  return <BarChart data={data} theme={theme} />;
+}
+
+function PieChart({ data, theme, isDoughnut }: { data: NonNullable<SlideContent['chartData']>; theme: ThemeConfig; isDoughnut: boolean }) {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  if (total === 0) return null;
+  const colors = [theme.primary, theme.accent, theme.secondary, '#34A853', '#FBBC04', '#EA4335'];
+  let cumAngle = 0;
+
+  // Build SVG pie segments
+  const segments = data.map((d, i) => {
+    const angle = (d.value / total) * 360;
+    const startAngle = cumAngle;
+    cumAngle += angle;
+    const startRad = (startAngle - 90) * Math.PI / 180;
+    const endRad = (startAngle + angle - 90) * Math.PI / 180;
+    const largeArc = angle > 180 ? 1 : 0;
+    const r = 40, cx = 50, cy = 50;
+    const ir = isDoughnut ? 22 : 0;
+    const x1 = cx + r * Math.cos(startRad), y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad), y2 = cy + r * Math.sin(endRad);
+    if (isDoughnut) {
+      const ix1 = cx + ir * Math.cos(startRad), iy1 = cy + ir * Math.sin(startRad);
+      const ix2 = cx + ir * Math.cos(endRad), iy2 = cy + ir * Math.sin(endRad);
+      return <path key={i} d={`M${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} L${ix2},${iy2} A${ir},${ir} 0 ${largeArc},0 ${ix1},${iy1} Z`} fill={colors[i % colors.length]} />;
+    }
+    return <path key={i} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`} fill={colors[i % colors.length]} />;
+  });
+
+  return (
+    <div className="flex items-center gap-2 mt-1">
+      <svg viewBox="0 0 100 100" className="w-16 h-16 shrink-0">{segments}</svg>
+      <div className="space-y-0.5">
+        {data.map((d, i) => (
+          <div key={i} className="flex items-center gap-1 text-[5px]">
+            <div className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: colors[i % colors.length] }} />
+            <span style={{ color: theme.text }}>{d.label} ({Math.round((d.value / total) * 100)}%)</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

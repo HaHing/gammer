@@ -27,6 +27,8 @@ export interface ChartDataItem {
   value: number;
 }
 
+export type ChartType = 'bar' | 'pie' | 'doughnut' | 'line';
+
 export interface SlideContent {
   type: SlideType;
   layout: SlideLayout;
@@ -35,6 +37,7 @@ export interface SlideContent {
   bullets?: string[];
   keyMetrics?: KeyMetric[];
   chartData?: ChartDataItem[];
+  chartType?: ChartType;
   insight?: string;
   source?: string;
   notes?: string;

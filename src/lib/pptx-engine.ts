@@ -172,8 +172,14 @@ function renderBullets(slide: PptxGenJS.Slide, bullets: string[], theme: ThemeCo
   return y;
 }
 
-function renderChart(slide: PptxGenJS.Slide, chartData: SlideContent['chartData'], theme: ThemeConfig, x: number, y: number, w: number, h: number) {
+function renderChart(slide: PptxGenJS.Slide, chartData: SlideContent['chartData'], theme: ThemeConfig, x: number, y: number, w: number, h: number, chartType?: string) {
   if (!chartData || chartData.length === 0) return;
+
+  if (chartType === 'pie' || chartType === 'doughnut') {
+    renderPieChart(slide, chartData, theme, x, y, w, h, chartType === 'doughnut');
+    return;
+  }
+
   const maxVal = Math.max(...chartData.map(d => d.value));
   const barW = (w - 0.5) / chartData.length;
   const chartBottom = y + h - 0.4;
@@ -193,6 +199,40 @@ function renderChart(slide: PptxGenJS.Slide, chartData: SlideContent['chartData'
     slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: bx, y: chartBottom - barH, w: bw, h: Math.max(barH, 0.05), fill: { color: c(i % 2 === 0 ? theme.primary : theme.accent) }, rectRadius: 0.04 });
     slide.addText(String(d.value), { x: bx, y: chartBottom - barH - 0.25, w: bw, h: 0.25, fontSize: 9, color: c(theme.primary), align: 'center', bold: true });
     slide.addText(d.label, { x: bx - 0.1, y: chartBottom + 0.05, w: bw + 0.2, h: 0.3, fontSize: 7, color: c(theme.secondary), align: 'center' });
+  });
+}
+
+function renderPieChart(slide: PptxGenJS.Slide, chartData: SlideContent['chartData'], theme: ThemeConfig, x: number, y: number, w: number, h: number, isDoughnut: boolean) {
+  if (!chartData || chartData.length === 0) return;
+  const colors = [theme.primary, theme.accent, theme.secondary, '#34A853', '#FBBC04', '#EA4335', '#9AA0A6'].map(c2 => c(c2));
+  const total = chartData.reduce((sum, d) => sum + d.value, 0);
+  if (total === 0) return;
+
+  // Use pptxgenjs native chart
+  const chartDataFormatted = [{
+    name: 'Data',
+    labels: chartData.map(d => d.label),
+    values: chartData.map(d => d.value),
+  }];
+
+  const chartTypeName: 'pie' | 'doughnut' = isDoughnut ? 'doughnut' : 'pie';
+  slide.addChart(chartTypeName, chartDataFormatted, {
+    x, y, w: w * 0.6, h,
+    showLegend: false,
+    showTitle: false,
+    showValue: true,
+    dataLabelFontSize: 8,
+    dataLabelColor: 'FFFFFF',
+    chartColors: colors.slice(0, chartData.length),
+  } as PptxGenJS.IChartOpts);
+
+  // Legend on the right
+  const legendX = x + w * 0.65;
+  chartData.forEach((d, i) => {
+    const ly = y + 0.3 + i * 0.35;
+    slide.addShape('rect' as PptxGenJS.ShapeType, { x: legendX, y: ly + 0.05, w: 0.15, h: 0.15, fill: { color: colors[i % colors.length] } });
+    const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+    slide.addText(`${d.label} (${pct}%)`, { x: legendX + 0.22, y: ly, w: w * 0.3, h: 0.25, fontSize: 8, color: c(theme.text) });
   });
 }
 
@@ -343,7 +383,7 @@ function renderChartFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, t
     slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
     curY += 0.4;
   }
-  if (content.chartData?.length) { renderChart(slide, content.chartData, theme, 1.5, curY, CW - 1.6, 3.0); curY += 3.2; }
+  if (content.chartData?.length) { renderChart(slide, content.chartData, theme, 1.5, curY, CW - 1.6, 3.0, content.chartType); curY += 3.2; }
   if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
   if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
 }
@@ -357,7 +397,7 @@ function renderDefaultLayout(slide: PptxGenJS.Slide, content: SlideContent, them
   if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
   if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
   if (content.bullets?.length) curY = renderBullets(slide, content.bullets, theme, design, curY, CW);
-  if (content.chartData?.length) renderChart(slide, content.chartData, theme, PAD, curY, CW, 2.2);
+  if (content.chartData?.length) renderChart(slide, content.chartData, theme, PAD, curY, CW, 2.2, content.chartType);
 }
 
 // ─── Icon Grid ───
