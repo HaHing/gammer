@@ -264,43 +264,43 @@ export default function Home() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Collapsible Sidebar */}
-        <div className={`shrink-0 border-r overflow-y-auto transition-all duration-300 ${sidebarOpen ? 'w-[260px]' : 'w-0 overflow-hidden'}`} style={{ borderColor: 'var(--border-0)', background: 'var(--bg-0)' }}>
-          <div className="w-[260px] px-4 py-4 space-y-4">
+        <div className={`shrink-0 border-r overflow-y-auto transition-all duration-300 ${sidebarOpen ? 'w-[400px]' : 'w-0 overflow-hidden'}`} style={{ borderColor: 'var(--border-0)', background: 'var(--bg-0)' }}>
+          <div className="w-[400px] px-6 py-5 space-y-5">
           {/* Topic */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-1)' }}>主题</label>
+            <label className="text-[13px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>演示主题</label>
             <input type="text" value={topic} onChange={e => setTopic(e.target.value)}
-              placeholder="输入演示主题"
-              className="w-full h-9 px-3 rounded-lg text-[13px] outline-none transition-all"
-              style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
+              placeholder="例如：2024年Q3技术架构升级方案"
+              className="w-full h-10 px-3.5 rounded-lg text-[14px] outline-none transition-all"
+              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
               onFocus={e => { e.target.style.borderColor = 'var(--accent)'; }}
               onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; }} />
           </div>
 
           {/* Description */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-1)' }}>描述</label>
+            <label className="text-[13px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>详细描述</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)}
-              placeholder="核心论点、关键数据"
-              rows={3}
-              className="w-full px-3 py-2 rounded-lg text-[13px] outline-none resize-none transition-all"
-              style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
+              placeholder="核心论点、关键数据、期望结论"
+              rows={4}
+              className="w-full px-3.5 py-2.5 rounded-lg text-[14px] outline-none resize-none transition-all"
+              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
               onFocus={e => { e.target.style.borderColor = 'var(--accent)'; }}
               onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; }} />
           </div>
 
           {/* Scenes */}
           <div>
-            <label className="text-[11px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>场景</label>
-            <div className="flex flex-wrap gap-1">
+            <label className="text-[13px] font-medium mb-2 block" style={{ color: 'var(--text-1)' }}>汇报场景</label>
+            <div className="flex flex-wrap gap-1.5">
               {SCENES.map(s => {
                 const active = scenes.includes(s);
                 return (
                   <button key={s}
                     onClick={() => active ? setScenes(p => p.split(/[,，]/).filter(x => x.trim() !== s).join('，')) : setScenes(p => p ? `${p}，${s}` : s)}
-                    className="h-6 px-2 rounded text-[10px] font-medium transition-all"
+                    className="h-7 px-3 rounded-md text-[12px] font-medium transition-all"
                     style={{
-                      background: active ? 'var(--accent-light)' : 'var(--bg-0)',
+                      background: active ? 'var(--accent-light)' : 'var(--bg-1)',
                       border: `1px solid ${active ? 'var(--accent)' : 'var(--border-0)'}`,
                       color: active ? 'var(--accent)' : 'var(--text-2)',
                     }}>
@@ -312,15 +312,15 @@ export default function Home() {
           </div>
 
           {/* Pages + Theme */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <label className="text-[11px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>页数</label>
-              <div className="flex gap-1">
+              <label className="text-[13px] font-medium mb-2 block" style={{ color: 'var(--text-1)' }}>页数</label>
+              <div className="flex gap-1.5">
                 {PAGE_OPTIONS.map(n => (
                   <button key={n} onClick={() => { setPageCount(n); setPreviewData(null); setOutline(null); }}
-                    className="flex-1 h-7 rounded text-[11px] font-semibold transition-all"
+                    className="flex-1 h-9 rounded-lg text-[13px] font-semibold transition-all"
                     style={{
-                      background: pageCount === n ? palette.primary : 'var(--bg-0)',
+                      background: pageCount === n ? palette.primary : 'var(--bg-1)',
                       color: pageCount === n ? '#fff' : 'var(--text-2)',
                       border: pageCount === n ? 'none' : '1px solid var(--border-0)',
                     }}>
@@ -328,61 +328,61 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1 mt-1.5">
+              <div className="flex gap-1.5 mt-2">
                 {(['zh', 'en'] as const).map(l => (
                   <button key={l} onClick={() => setLang(l)}
-                    className="flex-1 h-6 rounded text-[10px] font-medium transition-all"
+                    className="flex-1 h-8 rounded-lg text-[12px] font-medium transition-all"
                     style={{
-                      background: lang === l ? `${palette.primary}12` : 'var(--bg-0)',
+                      background: lang === l ? `${palette.primary}12` : 'var(--bg-1)',
                       border: lang === l ? `1px solid ${palette.primary}` : '1px solid var(--border-0)',
                       color: lang === l ? palette.primary : 'var(--text-2)',
                     }}>
-                    {l === 'zh' ? '中文' : 'EN'}
+                    {l === 'zh' ? '中文' : 'English'}
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>风格</label>
-              <div className="flex gap-1 mb-1.5">
+              <label className="text-[13px] font-medium mb-2 block" style={{ color: 'var(--text-1)' }}>设计风格</label>
+              <div className="flex gap-1.5 mb-2">
                 {THEMES.map(t => (
                   <button key={t.key} onClick={() => { setTheme(t.key); setPaletteIdx(0); }} title={t.name}
-                    className="w-7 h-7 rounded flex items-center justify-center text-[9px] font-bold transition-all"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-bold transition-all"
                     style={{
                       border: theme === t.key ? `2px solid ${t.dot}` : '1px solid var(--border-0)',
-                      background: theme === t.key ? `${t.dot}12` : 'var(--bg-0)',
+                      background: theme === t.key ? `${t.dot}12` : 'var(--bg-1)',
                       color: theme === t.key ? t.dot : 'var(--text-2)',
                     }}>
                     {t.icon}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 {THEME_PALETTES[theme].map((p, i) => (
                   <button key={i} onClick={() => setPaletteIdx(i)} title={p.label}
-                    className="flex-1 h-6 rounded flex items-center justify-center gap-0.5 transition-all"
+                    className="flex-1 h-8 rounded-lg flex items-center justify-center gap-1 transition-all"
                     style={{
                       border: paletteIdx === i ? `1.5px solid ${p.primary}` : '1px solid var(--border-0)',
-                      background: paletteIdx === i ? `${p.primary}08` : 'var(--bg-0)',
+                      background: paletteIdx === i ? `${p.primary}08` : 'var(--bg-1)',
                     }}>
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: p.primary }} />
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: p.accent }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: p.primary }} />
+                    <div className="w-2 h-2 rounded-full" style={{ background: p.accent }} />
                   </button>
                 ))}
               </div>
-              <p className="text-[9px] mt-1 text-center" style={{ color: 'var(--text-2)' }}>{palette.label}</p>
+              <p className="text-[11px] mt-1.5 text-center" style={{ color: 'var(--text-2)' }}>{palette.label}</p>
             </div>
           </div>
 
           {/* URL input */}
           <div>
-            <label className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-1)' }}>参考链接</label>
-            <div className="flex gap-1">
+            <label className="text-[13px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>参考链接</label>
+            <div className="flex gap-1.5">
               <input type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)}
-                placeholder="粘贴 URL"
-                className="flex-1 h-8 px-2 rounded text-[11px] outline-none"
-                style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
+                placeholder="粘贴 URL（多个用逗号分隔）"
+                className="flex-1 h-10 px-3.5 rounded-lg text-[13px] outline-none"
+                style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
               <button onClick={async () => {
                 if (!urlInput.trim() || urlLoading) return;
                 setUrlLoading(true);
@@ -403,7 +403,7 @@ export default function Home() {
                 } catch { alert('URL 提取失败'); }
                 finally { setUrlLoading(false); }
               }} disabled={!urlInput.trim() || urlLoading}
-                className="h-8 px-2.5 rounded text-[10px] font-medium text-white disabled:opacity-30"
+                className="h-10 px-4 rounded-lg text-[12px] font-medium text-white disabled:opacity-30"
                 style={{ background: palette.primary }}>
                 {urlLoading ? '...' : '提取'}
               </button>
@@ -411,20 +411,20 @@ export default function Home() {
           </div>
 
           {/* Actions */}
-          <div className="space-y-1.5 pt-2">
+          <div className="space-y-2 pt-3">
             <button onClick={handleOutline} disabled={!topic.trim() || busy}
-              className="w-full h-9 rounded-lg text-[12px] font-medium flex items-center justify-center gap-1.5 transition-all disabled:opacity-30"
-              style={{ background: 'var(--bg-0)', border: '1px solid var(--border-1)', color: 'var(--text-0)' }}>
+              className="w-full h-11 rounded-lg text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
+              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-1)', color: 'var(--text-0)' }}>
               {Icon.search}
-              {outlineLoading ? <span className="animate-pulse-slow">大纲中...</span> : '生成大纲'}
+              {outlineLoading ? <span className="animate-pulse-slow">大纲生成中...</span> : '生成大纲'}
             </button>
             <button onClick={handlePreview} disabled={!topic.trim() || busy || !outline}
-              className="w-full h-9 rounded-lg text-[12px] font-medium flex items-center justify-center gap-1.5 transition-all disabled:opacity-30"
-              style={{ background: 'var(--bg-0)', border: `1px solid ${outline ? palette.primary : 'var(--border-0)'}`, color: outline ? palette.primary : 'var(--text-2)' }}>
-              {previewing ? <span className="animate-pulse-slow">{previewStatus || '...'}</span> : '确认生成'}
+              className="w-full h-11 rounded-lg text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
+              style={{ background: 'var(--bg-1)', border: `1px solid ${outline ? palette.primary : 'var(--border-0)'}`, color: outline ? palette.primary : 'var(--text-2)' }}>
+              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '确认生成'}
             </button>
             <button onClick={handleGenerate} disabled={!topic.trim() || busy || !previewData}
-              className="w-full h-9 rounded-lg text-[12px] font-medium text-white flex items-center justify-center gap-1.5 transition-all disabled:opacity-30"
+              className="w-full h-11 rounded-lg text-[14px] font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-30"
               style={{ background: previewData ? palette.primary : 'var(--text-2)' }}>
               {Icon.download}
               {loading ? <span className="animate-pulse-slow">生成中...</span> : '下载 PPTX'}
@@ -434,7 +434,7 @@ export default function Home() {
         </div>
 
         {/* Main: Full-width content area */}
-        <div className="flex-1 min-w-0 overflow-y-auto slide-gallery" style={{ background: 'var(--bg-1)' }}>
+        <div className="flex-1 min-w-0 overflow-y-auto slide-gallery px-10" style={{ background: 'var(--bg-1)' }}>
           {(outlineLoading || previewing) && (
             <div className="max-w-[720px] mx-auto px-6 pt-6">
               <Progress phase={outlineLoading ? 'outline' : progressPhase} done={slidesDone} total={pageCount} accent={palette.primary} />
