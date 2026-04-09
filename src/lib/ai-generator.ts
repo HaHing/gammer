@@ -129,6 +129,50 @@ ${researchSection}
 4. null字段可省略，空数组用[]`;
 }
 
+// ─── Layout auto-correction: match layout to actual content ───
+function correctLayout(s: SlideContent): void {
+  if (['cover', 'toc'].includes(s.type)) return;
+  const bulletCount = s.bullets?.length || 0;
+  const hasMetrics = (s.keyMetrics?.length || 0) > 0;
+  const hasChart = (s.chartData?.length || 0) > 0;
+  const hasTable = !!s.tableData?.headers?.length;
+
+  // Estimate content height (in inches, slide usable ~5.4")
+  const metricH = hasMetrics ? 1.6 : 0;
+  const insightH = s.insight ? 0.8 : 0;
+  const bulletH = bulletCount * 0.44;
+  const chartH = hasChart ? 2.5 : 0;
+  const tableH = hasTable ? Math.min((s.tableData!.rows.length + 1) * 0.38 + 0.2, 3.5) : 0;
+  const totalH = metricH + insightH + bulletH + chartH + tableH;
+
+  // Fix: layout requires data that doesn't exist
+  if (s.layout === 'chart-focus' && !hasChart) s.layout = hasMetrics ? 'metrics-grid' : 'full-text';
+  if (s.layout === 'table-focus' && !hasTable) s.layout = hasMetrics ? 'metrics-grid' : 'full-text';
+  if (s.layout === 'big-number' && !hasMetrics) s.layout = 'full-text';
+  if (s.layout === 'metrics-grid' && !hasMetrics) s.layout = 'full-text';
+
+  // Fix: too much content for compact layouts
+  if (totalH > 5.4) {
+    // Content will overflow — switch to a layout that handles density better
+    if (hasChart && hasMetrics && bulletCount > 3) {
+      // Too much of everything — drop to chart-focus (truncates bullets to 3)
+      s.layout = 'chart-focus';
+    } else if (bulletCount > 6 && !hasChart && !hasTable) {
+      // Many bullets, no visuals — use two-column to save vertical space
+      s.layout = 'two-column';
+    } else if (bulletCount > 8) {
+      s.layout = 'three-column';
+    }
+  }
+
+  // Fix: too little content for multi-column layouts
+  if (s.layout === 'two-column' && bulletCount < 4) s.layout = 'full-text';
+  if (s.layout === 'three-column' && bulletCount < 6) s.layout = bulletCount >= 4 ? 'two-column' : 'full-text';
+  if (s.layout === 'icon-grid' && bulletCount < 3) s.layout = 'full-text';
+  if (s.layout === 'process-flow' && bulletCount < 3) s.layout = 'full-text';
+  if (s.layout === 'funnel' && bulletCount < 3) s.layout = 'full-text';
+}
+
 export async function generateWithAI(
   topic: string, description: string, pageCount: PageCount,
   theme: StyleTheme, scenes: string, research: ResearchReport | null
@@ -172,6 +216,7 @@ export async function generateWithAI(
         if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
         if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
         if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
+        correctLayout(s); // auto-fix layout vs content mismatch
         // Auto-fill missing or empty notes
         if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
           const parts = [`本页核心：${s.title || ''}`];
@@ -221,6 +266,7 @@ function normalizeSlide(s: SlideContent, i: number, total: number): SlideContent
   if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
   if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
   if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
+  correctLayout(s);
   if ((!s.notes || s.notes.length < 20) && !['cover', 'toc'].includes(s.type)) {
     const parts = [`本页核心：${s.title || ''}`];
     if (s.subtitle) parts.push(s.subtitle);
