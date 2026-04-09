@@ -64,14 +64,7 @@ function renderCover(slide: PptxGenJS.Slide, content: SlideContent, theme: Theme
 
   const isLight = ['centered', 'gradient-bottom', 'split-diagonal'].includes(design.coverStyle);
 
-  // Cover background image (semi-transparent overlay)
-  if (content.imageUrl) {
-    try {
-      slide.addImage({ path: content.imageUrl, x: 0, y: 0, w: W, h: 7.5, transparency: 80 });
-    } catch { /* skip if image fetch fails */ }
-  }
-
-  const titleColor = isLight && !content.imageUrl ? c(theme.primary) : 'FFFFFF';
+  const titleColor = isLight ? c(theme.primary) : 'FFFFFF';
   const subColor = isLight ? c(theme.secondary) : 'D0D0D0';
   const titleX = design.coverStyle === 'split-diagonal' ? 1.0 : design.coverStyle === 'centered' ? 2.0 : design.coverStyle === 'haio-dark' ? 1.0 : 1.2;
   const titleW = design.coverStyle === 'split-diagonal' ? W / 2 - 2 : design.coverStyle === 'centered' ? W - 4 : design.coverStyle === 'haio-dark' ? W - 4 : W - 3;
@@ -291,18 +284,6 @@ function renderContentSlide(slide: PptxGenJS.Slide, content: SlideContent, theme
     case 'process-flow': renderProcessFlowLayout(slide, content, theme, design); break;
     case 'funnel': renderFunnelLayout(slide, content, theme, design); break;
     default: renderDefaultLayout(slide, content, theme, design); break;
-  }
-
-  // Add image if available (right side panel)
-  if (content.imageUrl) {
-    const imgW = 3.5;
-    const imgX = W - imgW - 0.3;
-    try {
-      slide.addImage({ path: content.imageUrl, x: imgX, y: 1.2, w: imgW, h: 4.5, rounding: true });
-      if (content.imageCredit) {
-        slide.addText(content.imageCredit, { x: imgX, y: 5.75, w: imgW, h: 0.25, fontSize: 6, color: c(theme.secondary), align: 'right', italic: true });
-      }
-    } catch { /* image fetch failed, skip */ }
   }
 
   addFooter(slide, theme, design, pageNum, total);
