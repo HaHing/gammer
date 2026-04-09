@@ -240,23 +240,32 @@ export default function Home() {
 
   const busy = loading || previewing || outlineLoading;
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const hasContent = !!(previewData || outline || outlineLoading || previewing);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur-md" style={{ borderColor: 'var(--border-0)' }}>
-        <div className="max-w-[1280px] mx-auto h-13 px-6 flex items-center justify-between">
+      <header className="shrink-0 z-30 border-b bg-white" style={{ borderColor: 'var(--border-0)' }}>
+        <div className="h-12 px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-extrabold text-sm" style={{ background: '#7C3AED' }}>G</div>
-            <span className="text-[16px] font-semibold tracking-[-0.02em]" style={{ color: 'var(--text-0)' }}>Gammer</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-light)' }}>v0.0.01</span>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors" title={sidebarOpen ? '收起面板' : '展开面板'}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div className="w-7 h-7 rounded-md flex items-center justify-center text-white font-extrabold text-xs" style={{ background: '#7C3AED' }}>G</div>
+            <span className="text-[15px] font-semibold tracking-[-0.02em]">Gammer</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-light)' }}>v0.0.01</span>
           </div>
-          <span className="text-[12px] font-medium" style={{ color: 'var(--text-2)' }}>AI Presentation Engine</span>
+          <div className="flex items-center gap-2">
+            {previewData && <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-2)' }}>{activeSlide + 1} / {previewData.slides.length}</span>}
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1280px] mx-auto w-full flex gap-0">
-        {/* Left: Sidebar */}
-        <div className="w-[280px] shrink-0 border-r overflow-y-auto h-[calc(100vh-3.5rem)] sticky top-14 px-4 py-5 space-y-4" style={{ borderColor: 'var(--border-0)', background: 'var(--bg-1)' }}>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Collapsible Sidebar */}
+        <div className={`shrink-0 border-r overflow-y-auto transition-all duration-300 ${sidebarOpen ? 'w-[260px]' : 'w-0 overflow-hidden'}`} style={{ borderColor: 'var(--border-0)', background: 'var(--bg-0)' }}>
+          <div className="w-[260px] px-4 py-4 space-y-4">
           {/* Topic */}
           <div>
             <label className="text-[11px] font-medium mb-1 block" style={{ color: 'var(--text-1)' }}>主题</label>
@@ -422,31 +431,51 @@ export default function Home() {
             </button>
           </div>
         </div>
-
-        {/* Main: Preview content area */}
-        <div className="flex-1 min-w-0 px-6 py-5">
-          <div className="max-w-[800px] mx-auto">
-            {(outlineLoading || previewing) && (
-              <div className="mb-4">
-                <Progress
-                  phase={outlineLoading ? 'outline' : progressPhase}
-                  done={slidesDone} total={pageCount} accent={palette.primary} />
-              </div>
-            )}
-            {previewData ? (
-              <PreviewPanel data={previewData} active={activeSlide} setActive={setActiveSlide}
-                theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
-                onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); pushHistory(u); }}
-                onSlidesReplace={sl => { const u = { ...previewData, slides: sl }; setPreviewData(u); pushHistory(u); }}
-                canUndo={historyIdx > 0} canRedo={historyIdx < history.length - 1} onUndo={undo} onRedo={redo} />
-            ) : outline && !outlineLoading && !previewing ? (
-              <OutlineEditor outline={outline} setOutline={setOutline} accent={palette.primary} research={outlineResearch} />
-            ) : !outlineLoading && !previewing ? (
-              <Structure layouts={layoutPresets[pageCount]} theme={currentTheme} count={pageCount} accent={palette.primary} />
-            ) : null}
-          </div>
         </div>
-      </main>
+
+        {/* Main: Full-width content area */}
+        <div className="flex-1 min-w-0 overflow-y-auto slide-gallery" style={{ background: 'var(--bg-1)' }}>
+          {(outlineLoading || previewing) && (
+            <div className="max-w-[720px] mx-auto px-6 pt-6">
+              <Progress phase={outlineLoading ? 'outline' : progressPhase} done={slidesDone} total={pageCount} accent={palette.primary} />
+            </div>
+          )}
+
+          {previewData ? (
+            <SlideGallery data={previewData} active={activeSlide} setActive={setActiveSlide}
+              theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
+              onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); pushHistory(u); }}
+              onSlidesReplace={sl => { const u = { ...previewData, slides: sl }; setPreviewData(u); pushHistory(u); }}
+              canUndo={historyIdx > 0} canRedo={historyIdx < history.length - 1} onUndo={undo} onRedo={redo} />
+          ) : outline && !outlineLoading && !previewing ? (
+            <div className="max-w-[720px] mx-auto px-6 py-6">
+              <OutlineEditor outline={outline} setOutline={setOutline} accent={palette.primary} research={outlineResearch} />
+            </div>
+          ) : !hasContent ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-6" style={{ background: '#7C3AED' }}>G</div>
+                <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-0)' }}>开始创建演示文稿</h2>
+                <p className="text-[13px] mb-6" style={{ color: 'var(--text-2)' }}>在左侧输入主题，点击「生成大纲」开始</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {layoutPresets[pageCount].slice(0, 6).map((layout, i) => (
+                    <div key={i} className="slide-mini" style={{ background: i === 0 ? palette.primary : 'var(--bg-0)' }}>
+                      <div className="p-1.5 h-full flex flex-col">
+                        {i === 0 ? (
+                          <><div className="w-3/4 h-[2px] bg-white/70 rounded mb-0.5" /><div className="w-1/2 h-[2px] bg-white/40 rounded" /></>
+                        ) : (
+                          <><div className="w-2/3 h-[2px] rounded mb-0.5" style={{ background: palette.primary }} /><div className="w-full h-[1px] rounded mb-0.5" style={{ background: 'var(--border-0)' }} /><div className="w-4/5 h-[1px] rounded" style={{ background: 'var(--border-0)' }} /></>
+                        )}
+                      </div>
+                      <div className="slide-label">{layout.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -526,15 +555,14 @@ function Progress({ phase, done, total, accent }: { phase: string; done: number;
   );
 }
 
-/* ── Preview Panel ── */
-function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent, canUndo, canRedo, onUndo, onRedo }: {
+/* ── Slide Gallery: Full-width vertical scroll ── */
+function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent, canUndo, canRedo, onUndo, onRedo }: {
   data: PreviewResponse; active: number; setActive: (n: number) => void;
   theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean; accent: string;
   onSlideUpdate: (i: number, s: SlideContent) => void; onSlidesReplace: (s: SlideContent[]) => void;
   canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void;
 }) {
   const { slides, issues, score, research } = data;
-  const s = slides[active];
   const [retryInput, setRetryInput] = useState('');
   const [retrying, setRetrying] = useState(false);
   const [globalInput, setGlobalInput] = useState('');
@@ -567,18 +595,15 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
     finally { setGlobalEditing(false); }
   };
 
-  const inputCls = "flex-1 h-9 px-3 rounded-lg text-[12px] outline-none transition-all";
-  const inputSt = { background: 'var(--bg-0)', border: '1.5px solid var(--border-0)', color: 'var(--text-0)' };
-
   return (
-    <>
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[13px] font-semibold flex-1" style={{ color: 'var(--text-0)' }}>内容预览</span>
-        {/* D1: Undo/Redo */}
-        <button onClick={onUndo} disabled={!canUndo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20" style={{ border: '1px solid var(--border-0)' }} title="撤销">
+    <div className="px-6 py-6">
+      {/* Toolbar */}
+      <div className="max-w-[900px] mx-auto flex items-center gap-2 mb-4">
+        <span className="text-[14px] font-semibold flex-1">内容预览</span>
+        <button onClick={onUndo} disabled={!canUndo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20 hover:bg-gray-100" style={{ border: '1px solid var(--border-0)' }} title="撤销">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         </button>
-        <button onClick={onRedo} disabled={!canRedo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20" style={{ border: '1px solid var(--border-0)' }} title="重做">
+        <button onClick={onRedo} disabled={!canRedo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20 hover:bg-gray-100" style={{ border: '1px solid var(--border-0)' }} title="重做">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
         {score > 0 && (
@@ -588,145 +613,92 @@ function PreviewPanel({ data, active, setActive, theme, themeKey, loading, onGen
             {score}分
           </span>
         )}
-        <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{active + 1}/{slides.length}</span>
+        {/* Edit inputs inline */}
+        <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
+          placeholder={`修改第${active + 1}页...`} onKeyDown={e => e.key === 'Enter' && handleRetry()}
+          className="w-40 h-8 px-2.5 rounded-lg text-[11px] outline-none" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
+        <button onClick={handleRetry} disabled={!retryInput.trim() || retrying}
+          className="h-8 px-2.5 rounded-lg text-[11px] font-medium text-white disabled:opacity-30" style={{ background: accent }}>
+          {retrying ? '...' : '重试'}
+        </button>
+        <input type="text" value={globalInput} onChange={e => setGlobalInput(e.target.value)}
+          placeholder="全局修改..." onKeyDown={e => e.key === 'Enter' && handleGlobalEdit()}
+          className="w-32 h-8 px-2.5 rounded-lg text-[11px] outline-none" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
+        <button onClick={handleGlobalEdit} disabled={!globalInput.trim() || globalEditing}
+          className="h-8 px-2.5 rounded-lg text-[11px] font-medium disabled:opacity-30" style={{ border: `1px solid ${accent}`, color: accent }}>
+          {globalEditing ? '...' : '编辑'}
+        </button>
+        <button onClick={onGenerate} disabled={busy}
+          className="h-8 px-4 rounded-lg text-[11px] font-semibold text-white disabled:opacity-30" style={{ background: accent }}>
+          {loading ? '...' : '下载 PPTX'}
+        </button>
       </div>
 
+      {/* Research summary */}
       {research?.summary && (
-        <div className="mb-3 p-3 rounded-xl text-[11px] leading-relaxed" style={{ background: `${accent}06`, border: `1px solid ${accent}15`, color: 'var(--text-1)' }}>
+        <div className="max-w-[900px] mx-auto mb-4 p-3 rounded-xl text-[11px] leading-relaxed" style={{ background: `${accent}06`, border: `1px solid ${accent}15`, color: 'var(--text-1)' }}>
           {research.summary}
-          {research.keyStats?.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {research.keyStats.slice(0, 3).map((st, i) => (
-                <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-medium" style={{ background: 'var(--bg-0)', color: accent }}>{st.metric} {st.value}</span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       {issues.length > 0 && (
-        <div className="mb-3 p-2.5 rounded-xl text-[10px]" style={{ background: '#FFFBEB' }}>
-          {issues.slice(0, 3).map((iss, i) => (
-            <p key={i} style={{ color: 'var(--warn)' }}>P{iss.page}: {iss.issue}</p>
-          ))}
+        <div className="max-w-[900px] mx-auto mb-4 p-2.5 rounded-xl text-[10px]" style={{ background: '#FFFBEB' }}>
+          {issues.slice(0, 3).map((iss, i) => <p key={i} style={{ color: 'var(--warn)' }}>P{iss.page}: {iss.issue}</p>)}
         </div>
       )}
 
-      {/* Thumbnails */}
-      <div className="flex gap-1 mb-3 overflow-x-auto pb-0.5">
+      {/* Slide Gallery: vertical scroll, each slide full-width */}
+      <div className="max-w-[900px] mx-auto space-y-6">
         {slides.map((sl, i) => (
-          <button key={i} onClick={() => setActive(i)}
-            className="shrink-0 w-10 h-7 rounded-lg text-[9px] font-semibold flex items-center justify-center transition-all"
-            style={{
-              background: i === active ? accent : 'var(--bg-0)',
-              color: i === active ? '#fff' : 'var(--text-2)',
-              border: i === active ? 'none' : '1px solid var(--border-0)',
-              boxShadow: i === active ? `0 2px 6px ${accent}30` : 'none',
-            }}>
-            {i + 1}
-          </button>
+          <div key={i} id={`slide-${i}`} onClick={() => setActive(i)}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-semibold w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ background: i === active ? accent : 'var(--text-2)' }}>{i + 1}</span>
+              <span className="text-[11px] font-medium" style={{ color: i === active ? accent : 'var(--text-2)' }}>
+                {TYPE_LABEL[sl.type] || sl.type} · {sl.layout || 'full-text'}
+              </span>
+              {sl.source && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium ml-auto"
+                  style={{
+                    background: sl.sourceType === 'official' ? '#ECFDF5' : sl.sourceType === 'research' ? '#EFF6FF' : '#FFFBEB',
+                    color: sl.sourceType === 'official' ? 'var(--success)' : sl.sourceType === 'research' ? '#2563EB' : 'var(--warn)',
+                  }}>
+                  {sl.sourceType === 'official' ? '权威来源' : sl.sourceType === 'research' ? '研究数据' : 'AI 推断'}
+                </span>
+              )}
+              {i === active && (
+                <button onClick={(e) => { e.stopPropagation(); setZoomed(true); }} className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100" style={{ border: '1px solid var(--border-0)' }} title="放大">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
+              )}
+            </div>
+            <div className={`slide-card ${i === active ? 'ring-2' : ''}`} style={i === active ? { ['--tw-ring-color' as string]: accent } : undefined}>
+              <SlideRenderer slide={sl} theme={theme} themeKey={themeKey} pageNum={i + 1} total={slides.length} />
+            </div>
+          </div>
         ))}
       </div>
 
-      {s && (
-        <div>
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <span className="text-[11px] font-medium flex-1" style={{ color: 'var(--text-2)' }}>
-              {TYPE_LABEL[s.type] || s.type} · {s.layout || 'full-text'}
-            </span>
-            <button onClick={() => setZoomed(true)} className="w-6 h-6 rounded flex items-center justify-center" style={{ border: '1px solid var(--border-0)' }} title="放大预览">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            </button>
-          </div>
-          <div className="rounded-xl overflow-hidden cursor-pointer" style={{ border: '1px solid var(--border-0)' }} onClick={() => setZoomed(true)}>
-            <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
-          </div>
-          {s.notes && <p className="mt-2 text-[10px] italic" style={{ color: 'var(--text-2)' }}>{s.notes}</p>}
-          {/* C2: Source provenance badge */}
-          {s.source && (
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
-                style={{
-                  background: s.sourceType === 'official' ? '#ECFDF5' : s.sourceType === 'research' ? '#EFF6FF' : '#FFFBEB',
-                  color: s.sourceType === 'official' ? 'var(--success)' : s.sourceType === 'research' ? '#2563EB' : 'var(--warn)',
-                }}>
-                {s.sourceType === 'official' ? '权威来源' : s.sourceType === 'research' ? '研究数据' : 'AI 推断'}
-              </span>
-              <span className="text-[9px]" style={{ color: 'var(--text-2)' }}>{s.source}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Nav */}
-      <div className="flex gap-2 mt-3">
-        <button onClick={() => setActive(Math.max(0, active - 1))} disabled={active === 0}
-          className="flex-1 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-20"
-          style={{ border: '1px solid var(--border-0)', color: 'var(--text-1)', background: 'var(--bg-0)' }}>
-          {Icon.left}
-        </button>
-        <button onClick={() => setActive(Math.min(slides.length - 1, active + 1))} disabled={active === slides.length - 1}
-          className="flex-1 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-20"
-          style={{ border: '1px solid var(--border-0)', color: 'var(--text-1)', background: 'var(--bg-0)' }}>
-          {Icon.right}
-        </button>
-      </div>
-
-      {/* Edit: single */}
-      <div className="mt-3 flex gap-1.5">
-        <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
-          placeholder="修改本页..." onKeyDown={e => e.key === 'Enter' && handleRetry()}
-          className={inputCls} style={inputSt} />
-        <button onClick={handleRetry} disabled={!retryInput.trim() || retrying}
-          className="h-9 px-3 rounded-lg text-[12px] font-medium text-white flex items-center gap-1 disabled:opacity-30"
-          style={{ background: accent }}>
-          {Icon.refresh} {retrying ? '...' : '重试'}
-        </button>
-      </div>
-
-      {/* Edit: global */}
-      <div className="mt-1.5 flex gap-1.5">
-        <input type="text" value={globalInput} onChange={e => setGlobalInput(e.target.value)}
-          placeholder="全局修改..." onKeyDown={e => e.key === 'Enter' && handleGlobalEdit()}
-          className={inputCls} style={inputSt} />
-        <button onClick={handleGlobalEdit} disabled={!globalInput.trim() || globalEditing}
-          className="h-9 px-3 rounded-lg text-[12px] font-medium flex items-center gap-1 disabled:opacity-30"
-          style={{ border: `1.5px solid ${accent}`, color: accent, background: 'var(--bg-0)' }}>
-          {Icon.edit} {globalEditing ? '...' : '编辑'}
-        </button>
-      </div>
-
-      <button onClick={onGenerate} disabled={busy}
-        className="w-full mt-3 h-11 rounded-xl text-[13px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-30"
-        style={{ background: accent, boxShadow: `0 4px 14px ${accent}25` }}>
-        {Icon.download} {loading ? '生成中...' : '下载 PPTX'}
-      </button>
-
       {/* Zoom Modal */}
-      {zoomed && s && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setZoomed(false)}>
-          <div className="relative w-[90vw] max-w-[960px]" onClick={e => e.stopPropagation()}>
-            <SlideRenderer slide={s} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
-            {/* Nav buttons */}
-            <button onClick={() => { setActive(Math.max(0, active - 1)); }} disabled={active === 0}
-              className="absolute left-[-48px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20"
-              style={{ background: 'rgba(0,0,0,0.5)' }}>
+      {zoomed && slides[active] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => setZoomed(false)}>
+          <div className="relative w-[92vw] max-w-[1100px]" onClick={e => e.stopPropagation()}>
+            <SlideRenderer slide={slides[active]} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
+            <button onClick={() => setActive(Math.max(0, active - 1))} disabled={active === 0}
+              className="absolute left-[-52px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20" style={{ background: 'rgba(0,0,0,0.5)' }}>
               {Icon.left}
             </button>
-            <button onClick={() => { setActive(Math.min(slides.length - 1, active + 1)); }} disabled={active === slides.length - 1}
-              className="absolute right-[-48px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20"
-              style={{ background: 'rgba(0,0,0,0.5)' }}>
+            <button onClick={() => setActive(Math.min(slides.length - 1, active + 1))} disabled={active === slides.length - 1}
+              className="absolute right-[-52px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20" style={{ background: 'rgba(0,0,0,0.5)' }}>
               {Icon.right}
             </button>
-            {/* Close + page indicator */}
             <div className="absolute -top-10 left-0 right-0 flex items-center justify-between">
               <span className="text-white text-[13px] font-medium">{active + 1} / {slides.length}</span>
-              <button onClick={() => setZoomed(false)} className="text-white text-[13px]">ESC 关闭</button>
+              <button onClick={() => setZoomed(false)} className="text-white/70 text-[12px] hover:text-white">ESC 关闭</button>
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -809,33 +781,4 @@ function OutlineEditor({ outline, setOutline, accent, research }: {
   );
 }
 
-/* ── Structure Preview ── */
-function Structure({ layouts, theme, count, accent }: {
-  layouts: { type: string; label: string }[]; theme: ThemeConfig; count: number; accent: string;
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[13px] font-semibold" style={{ color: 'var(--text-0)' }}>页面结构</span>
-        <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{count} 页</span>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {layouts.map((layout, i) => (
-          <div key={i} className="slide-mini" style={{ background: i === 0 ? accent : 'var(--bg-0)' }}>
-            <div className="p-1.5 h-full flex flex-col">
-              {i === 0 ? (
-                <><div className="w-3/4 h-[2px] bg-white/70 rounded mb-0.5" /><div className="w-1/2 h-[2px] bg-white/40 rounded" /></>
-              ) : (
-                <><div className="w-2/3 h-[2px] rounded mb-0.5" style={{ background: accent }} /><div className="w-full h-[1px] rounded mb-0.5" style={{ background: 'var(--border-0)' }} /><div className="w-4/5 h-[1px] rounded" style={{ background: 'var(--border-0)' }} /></>
-              )}
-            </div>
-            <div className="slide-label">{layout.label}</div>
-          </div>
-        ))}
-      </div>
-      <p className="mt-4 text-[11px] leading-relaxed" style={{ color: 'var(--text-2)' }}>
-        点击「预览内容」生成咨询级内容，确认后下载 PPTX。
-      </p>
-    </>
-  );
-}
+/* ── (Structure removed — replaced by inline hero state) ── */

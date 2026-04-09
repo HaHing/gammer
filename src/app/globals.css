@@ -2,8 +2,8 @@
 
 :root {
   --bg-0: #FFFFFF;
-  --bg-1: #F9FAFB;
-  --bg-2: #F3F4F6;
+  --bg-1: #F8F9FB;
+  --bg-2: #F1F3F5;
   --bg-3: #E5E7EB;
   --text-0: #111827;
   --text-1: #6B7280;
@@ -21,7 +21,7 @@
 * { scrollbar-width: thin; scrollbar-color: var(--border-0) transparent; }
 
 body {
-  background: var(--bg-0);
+  background: var(--bg-1);
   color: var(--text-0);
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -29,29 +29,36 @@ body {
 
 ::selection { background: var(--accent-light); color: var(--accent); }
 
-/* Slide preview mini cards */
+/* Slide card in vertical scroll */
+.slide-card {
+  aspect-ratio: 16/9;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s;
+  cursor: pointer;
+}
+.slide-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.06); }
+
+/* Slide mini thumbnails */
 .slide-mini {
   aspect-ratio: 16/9;
   border: 1px solid var(--border-0);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   font-size: 6px;
   position: relative;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
 }
-.slide-mini:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.slide-mini:hover { border-color: var(--accent); }
 .slide-mini .slide-label {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: absolute; bottom: 0; left: 0; right: 0;
   background: rgba(255,255,255,0.9);
   color: var(--text-1);
   padding: 2px 4px;
   font-size: 7px;
   text-align: center;
-  backdrop-filter: blur(4px);
 }
 
 @keyframes pulse-slow {
@@ -74,3 +81,7 @@ body {
   50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); }
 }
 .step-active { animation: step-pulse 1.5s ease-in-out infinite; }
+
+/* Smooth scroll for slide gallery */
+.slide-gallery { scroll-behavior: smooth; }
+.slide-gallery > div { scroll-snap-align: start; }
