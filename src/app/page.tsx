@@ -60,6 +60,8 @@ export default function Home() {
   const currentTheme = theme === 'brand' ? { ...themes.brand, primary: customColor } : themes[theme];
 
   const [previewStatus, setPreviewStatus] = useState('');
+  const [progressPhase, setProgressPhase] = useState<string>('');
+  const [slidesDone, setSlidesDone] = useState(0);
 
   const handlePreview = async () => {
     if (!topic.trim()) return;
@@ -67,6 +69,8 @@ export default function Home() {
     setPreviewData(null);
     setActiveSlide(0);
     setPreviewStatus('正在搜索权威数据源...');
+    setProgressPhase('research');
+    setSlidesDone(0);
 
     try {
       const res = await fetch('/api/preview-stream', {
@@ -95,10 +99,15 @@ export default function Home() {
           if (line.startsWith('event: ')) { eventType = line.slice(7); continue; }
           if (line.startsWith('data: ')) {
             const data = JSON.parse(line.slice(6));
-            if (eventType === 'status') setPreviewStatus(data.message);
-            else if (eventType === 'research') streamResearch = data;
-            else if (eventType === 'slide') {
+            if (eventType === 'status') {
+              setPreviewStatus(data.message);
+              setProgressPhase(data.phase);
+            } else if (eventType === 'research') {
+              streamResearch = data;
+              setProgressPhase('generating');
+            } else if (eventType === 'slide') {
               streamSlides.push(data.slide);
+              setSlidesDone(streamSlides.length);
               setPreviewData(prev => ({
                 previewId: prev?.previewId || '',
                 slides: [...streamSlides],
@@ -108,6 +117,7 @@ export default function Home() {
               }));
             } else if (eventType === 'done') {
               setPreviewData({ ...data, research: streamResearch });
+              setProgressPhase('done');
             } else if (eventType === 'error') {
               throw new Error(data.message);
             }
@@ -119,6 +129,7 @@ export default function Home() {
     } finally {
       setPreviewing(false);
       setPreviewStatus('');
+      setProgressPhase('');
     }
   };
 
@@ -254,6 +265,7 @@ export default function Home() {
         {/* Right: Preview panel */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl border border-[var(--border)] p-5 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto">
+            {previewing && <ProgressBar phase={progressPhase} slidesDone={slidesDone} total={pageCount} theme={currentTheme} />}
             {previewData ? (
               <PreviewPanel data={previewData} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
                 theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy}
@@ -265,13 +277,68 @@ export default function Home() {
                 onSlidesReplace={(slides) => {
                   setPreviewData({ ...previewData, slides });
                 }} />
-            ) : (
+            ) : !previewing ? (
               <StructurePreview layouts={layoutPresets[pageCount]} theme={currentTheme} pageCount={pageCount}
                 themeName={THEMES.find(t => t.key === theme)?.name || ''} />
-            )}
+            ) : null}
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+const PHASES = [
+  { key: 'research', icon: '🔍', label: '数据搜索' },
+  { key: 'generating', icon: '✍️', label: '内容生成' },
+  { key: 'checking', icon: '✅', label: '质量检查' },
+  { key: 'optimizing', icon: '⚡', label: '内容优化' },
+  { key: 'done', icon: '🎉', label: '完成' },
+];
+
+function ProgressBar({ phase, slidesDone, total, theme }: { phase: string; slidesDone: number; total: number; theme: ThemeConfig }) {
+  const phaseIdx = PHASES.findIndex(p => p.key === phase);
+  // Progress: research=15%, generating=15-80% (proportional to slides), checking=85%, optimizing=90%, done=100%
+  let pct = 5;
+  if (phase === 'research') pct = 10;
+  else if (phase === 'generating') pct = 15 + Math.round((slidesDone / Math.max(total, 1)) * 65);
+  else if (phase === 'checking') pct = 85;
+  else if (phase === 'optimizing') pct = 92;
+  else if (phase === 'done') pct = 100;
+
+  return (
+    <div className="mb-4">
+      {/* Phase steps */}
+      <div className="flex items-center justify-between mb-2">
+        {PHASES.slice(0, -1).map((p, i) => {
+          const isActive = p.key === phase;
+          const isDone = phaseIdx > i;
+          return (
+            <div key={p.key} className="flex items-center gap-1">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-all ${isDone ? 'bg-green-100' : isActive ? 'animate-pulse' : 'opacity-40'}`}
+                style={isActive ? { background: theme.primary + '20' } : undefined}>
+                {isDone ? '✓' : p.icon}
+              </div>
+              <span className={`text-[9px] hidden sm:inline ${isActive ? 'font-medium' : isDone ? 'text-green-600' : 'text-gray-400'}`}
+                style={isActive ? { color: theme.primary } : undefined}>
+                {p.label}
+              </span>
+              {i < 3 && <span className="text-gray-300 text-[8px] mx-0.5">→</span>}
+            </div>
+          );
+        })}
+      </div>
+      {/* Progress bar */}
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${pct}%`, background: theme.primary }} />
+      </div>
+      {/* Status text */}
+      <div className="flex justify-between mt-1">
+        <span className="text-[10px] text-[var(--text-secondary)]">
+          {phase === 'generating' && slidesDone > 0 ? `已生成 ${slidesDone}/${total} 页` : PHASES[phaseIdx]?.label || '准备中...'}
+        </span>
+        <span className="text-[10px] font-medium" style={{ color: theme.primary }}>{pct}%</span>
+      </div>
     </div>
   );
 }
