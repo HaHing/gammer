@@ -138,13 +138,27 @@ export default function Home() {
 
   // D1: Push to history on preview data change
   const pushHistory = (data: PreviewResponse) => {
-    const newHistory = history.slice(0, historyIdx + 1);
-    newHistory.push(data);
-    setHistory(newHistory);
-    setHistoryIdx(newHistory.length - 1);
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIdx + 1);
+      newHistory.push(data);
+      setHistoryIdx(newHistory.length - 1);
+      return newHistory;
+    });
   };
-  const undo = () => { if (historyIdx > 0) { setHistoryIdx(historyIdx - 1); setPreviewData(history[historyIdx - 1]); } };
-  const redo = () => { if (historyIdx < history.length - 1) { setHistoryIdx(historyIdx + 1); setPreviewData(history[historyIdx + 1]); } };
+  const undo = () => {
+    if (historyIdx > 0) {
+      const newIdx = historyIdx - 1;
+      setHistoryIdx(newIdx);
+      setPreviewData(history[newIdx]);
+    }
+  };
+  const redo = () => {
+    if (historyIdx < history.length - 1) {
+      const newIdx = historyIdx + 1;
+      setHistoryIdx(newIdx);
+      setPreviewData(history[newIdx]);
+    }
+  };
 
   // A1: Generate outline first
   const handleOutline = async () => {
@@ -155,7 +169,10 @@ export default function Home() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, description: description + (lang === 'en' ? '\n\n[LANGUAGE: Generate all content in English]' : ''), pageCount, theme, scenes }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || '大纲生成失败');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `大纲生成失败 (${res.status})`);
+      }
       const data = await res.json();
       setOutline(data.outline);
       setResearchId(data.researchId);
@@ -221,7 +238,7 @@ export default function Home() {
     finally { setLoading(false); }
   };
 
-  const busy = loading || previewing;
+  const busy = loading || previewing || outlineLoading;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -407,7 +424,7 @@ export default function Home() {
 
           {/* Actions: 3-step flow */}
           <div className="flex gap-3 pt-1">
-            <button onClick={handleOutline} disabled={!topic.trim() || busy || outlineLoading}
+            <button onClick={handleOutline} disabled={!topic.trim() || busy}
               className="flex-1 h-12 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
               style={{ background: 'var(--bg-0)', border: '1.5px solid var(--border-1)', color: 'var(--text-0)' }}>
               {Icon.search}
