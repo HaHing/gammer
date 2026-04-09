@@ -447,16 +447,23 @@ export default function Home() {
         {/* Right: Preview */}
         <div>
           <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl p-5" style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)' }}>
-            {previewing && <Progress phase={progressPhase} done={slidesDone} total={pageCount} accent={palette.primary} />}
+            {/* Progress: show during outline loading OR preview generation */}
+            {(outlineLoading || previewing) && (
+              <div className="sticky top-0 z-10 -mx-5 -mt-5 px-5 pt-5 pb-2 rounded-t-2xl" style={{ background: 'var(--bg-1)' }}>
+                <Progress
+                  phase={outlineLoading ? 'outline' : progressPhase}
+                  done={slidesDone} total={pageCount} accent={palette.primary} />
+              </div>
+            )}
             {previewData ? (
               <PreviewPanel data={previewData} active={activeSlide} setActive={setActiveSlide}
                 theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
                 onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); pushHistory(u); }}
                 onSlidesReplace={sl => { const u = { ...previewData, slides: sl }; setPreviewData(u); pushHistory(u); }}
                 canUndo={historyIdx > 0} canRedo={historyIdx < history.length - 1} onUndo={undo} onRedo={redo} />
-            ) : outline && !previewing ? (
+            ) : outline && !outlineLoading && !previewing ? (
               <OutlineEditor outline={outline} setOutline={setOutline} accent={palette.primary} research={outlineResearch} />
-            ) : !previewing ? (
+            ) : !outlineLoading && !previewing ? (
               <Structure layouts={layoutPresets[pageCount]} theme={currentTheme} count={pageCount} accent={palette.primary} />
             ) : null}
           </div>
@@ -467,14 +474,16 @@ export default function Home() {
 }
 
 /* ── Progress ── */
-const STEPS = ['搜索', '生成', '检查', '优化'];
-const STEP_ICONS = ['🔍', '✍️', '✅', '⚡'];
+const STEPS = ['搜索', '大纲', '生成', '检查', '优化'];
+const STEP_ICONS = ['🔍', '📋', '✍️', '✅', '⚡'];
 
 function Progress({ phase, done, total, accent }: { phase: string; done: number; total: number; accent: string }) {
-  const map: Record<string, number> = { research: 0, generating: 1, checking: 2, optimizing: 3, done: 4 };
+  const map: Record<string, number> = { outline: 0, research: 1, generating: 2, checking: 3, optimizing: 4, done: 5 };
   const idx = map[phase] ?? 0;
-  const pct = phase === 'generating' ? 15 + Math.round((done / Math.max(total, 1)) * 60) :
-    phase === 'checking' ? 80 : phase === 'optimizing' ? 90 : phase === 'done' ? 100 : 8;
+  const pct = phase === 'outline' ? 5
+    : phase === 'research' ? 15
+    : phase === 'generating' ? 20 + Math.round((done / Math.max(total, 1)) * 55)
+    : phase === 'checking' ? 80 : phase === 'optimizing' ? 90 : phase === 'done' ? 100 : 3;
 
   return (
     <div className="mb-5 p-4 rounded-xl" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
@@ -516,6 +525,7 @@ function Progress({ phase, done, total, accent }: { phase: string; done: number;
         <span className="text-[12px] font-medium" style={{ color: 'var(--text-0)' }}>
           {phase === 'generating' && done > 0
             ? `正在生成第 ${done + 1} 页（共 ${total} 页）`
+            : phase === 'outline' ? '正在生成大纲...'
             : phase === 'research' ? '正在搜索权威数据源...'
             : phase === 'checking' ? '正在检查内容质量...'
             : phase === 'optimizing' ? '正在优化内容...'
