@@ -30,6 +30,14 @@ function CoverSlide({ slide, theme, design }: { slide: SlideContent; theme: Them
 
   return (
     <div className="aspect-[16/9] rounded-lg overflow-hidden relative" style={bg}>
+      {/* Cover image as background overlay */}
+      {slide.imageUrl && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={slide.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+        </>
+      )}
       {design.coverStyle === 'haio-dark' && (
         <>
           <div className="absolute left-0 top-0 w-1 h-full" style={{ background: theme.primary }} />
@@ -40,11 +48,11 @@ function CoverSlide({ slide, theme, design }: { slide: SlideContent; theme: Them
         {design.coverStyle === 'haio-dark' && (
           <div className="text-[6px] tracking-[0.2em] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>PROFESSIONAL REPORT</div>
         )}
-        <h1 className="text-[14px] font-bold leading-tight mb-1" style={{ color: isDark ? '#fff' : theme.primary }}>
+        <h1 className="text-[14px] font-bold leading-tight mb-1" style={{ color: isDark || slide.imageUrl ? '#fff' : theme.primary }}>
           {slide.title}
         </h1>
         {slide.subtitle && (
-          <p className="text-[8px] mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.7)' : theme.secondary }}>
+          <p className="text-[8px] mt-1" style={{ color: isDark || slide.imageUrl ? 'rgba(255,255,255,0.7)' : theme.secondary }}>
             {slide.subtitle}
           </p>
         )}
@@ -52,10 +60,10 @@ function CoverSlide({ slide, theme, design }: { slide: SlideContent; theme: Them
           <div className="w-[30%] h-[2px] mt-2" style={{ background: theme.primary }} />
         )}
         <div className="mt-3 flex items-center gap-3">
-          <span className="text-[6px]" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : theme.secondary }}>
+          <span className="text-[6px]" style={{ color: isDark || slide.imageUrl ? 'rgba(255,255,255,0.5)' : theme.secondary }}>
             {new Date().toLocaleDateString('zh-CN')}
           </span>
-          <span className="text-[5px] italic" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : theme.secondary }}>
+          <span className="text-[5px] italic" style={{ color: isDark || slide.imageUrl ? 'rgba(255,255,255,0.3)' : theme.secondary }}>
             Powered by Gammer
           </span>
         </div>
@@ -98,44 +106,60 @@ function TocSlide({ slide, theme, design, pageNum, total }: { slide: SlideConten
 // ─── Content (all layouts) ───
 function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number }) {
   const layout = slide.layout || 'full-text';
+  const hasImage = !!slide.imageUrl;
 
   return (
     <SlideFrame theme={theme} design={design} pageNum={pageNum} total={total}>
-      <SlideTitle title={slide.title} theme={theme} />
-      {slide.subtitle && (
-        <p className="text-[7px] mt-0.5 mb-1" style={{ color: theme.secondary, fontStyle: design.subtitleItalic ? 'italic' : 'normal' }}>
-          {slide.subtitle}
-        </p>
-      )}
+      <div className={hasImage ? 'flex gap-2' : ''}>
+        <div className={hasImage ? 'flex-1 min-w-0' : ''}>
+          <SlideTitle title={slide.title} theme={theme} />
+          {slide.subtitle && (
+            <p className="text-[7px] mt-0.5 mb-1" style={{ color: theme.secondary, fontStyle: design.subtitleItalic ? 'italic' : 'normal' }}>
+              {slide.subtitle}
+            </p>
+          )}
 
-      {/* Key Metrics */}
-      {slide.keyMetrics && slide.keyMetrics.length > 0 && <MetricsRow metrics={slide.keyMetrics} theme={theme} />}
+          {/* Key Metrics */}
+          {slide.keyMetrics && slide.keyMetrics.length > 0 && <MetricsRow metrics={slide.keyMetrics} theme={theme} />}
 
-      {/* Insight */}
-      {slide.insight && <InsightBox insight={slide.insight} theme={theme} style={design.insightStyle} />}
+          {/* Insight */}
+          {slide.insight && <InsightBox insight={slide.insight} theme={theme} style={design.insightStyle} />}
 
-      {/* Layout-specific content */}
-      {layout === 'two-column' && <TwoColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />}
-      {layout === 'three-column' && <ThreeColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />}
-      {layout === 'big-number' && slide.keyMetrics?.[0] && <BigNumber metric={slide.keyMetrics[0]} theme={theme} />}
-      {layout === 'quote-highlight' && <QuoteBlock text={slide.insight || slide.subtitle || ''} source={slide.source} theme={theme} />}
-      {layout === 'chart-focus' && slide.chartData && <ChartView data={slide.chartData} theme={theme} chartType={slide.chartType} />}
-      {layout === 'table-focus' && slide.tableData && <DataTable data={slide.tableData} theme={theme} />}
-      {layout === 'icon-grid' && <IconGrid bullets={slide.bullets || []} theme={theme} />}
-      {layout === 'process-flow' && <ProcessFlow bullets={slide.bullets || []} theme={theme} />}
-      {layout === 'funnel' && <Funnel bullets={slide.bullets || []} theme={theme} />}
-      {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
-        <BulletList bullets={slide.bullets} theme={theme} design={design} />
-      )}
+          {/* Layout-specific content */}
+          {layout === 'two-column' && <TwoColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />}
+          {layout === 'three-column' && <ThreeColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />}
+          {layout === 'big-number' && slide.keyMetrics?.[0] && <BigNumber metric={slide.keyMetrics[0]} theme={theme} />}
+          {layout === 'quote-highlight' && <QuoteBlock text={slide.insight || slide.subtitle || ''} source={slide.source} theme={theme} />}
+          {layout === 'chart-focus' && slide.chartData && <ChartView data={slide.chartData} theme={theme} chartType={slide.chartType} />}
+          {layout === 'table-focus' && slide.tableData && <DataTable data={slide.tableData} theme={theme} />}
+          {layout === 'icon-grid' && <IconGrid bullets={slide.bullets || []} theme={theme} />}
+          {layout === 'process-flow' && <ProcessFlow bullets={slide.bullets || []} theme={theme} />}
+          {layout === 'funnel' && <Funnel bullets={slide.bullets || []} theme={theme} />}
+          {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
+            <BulletList bullets={slide.bullets} theme={theme} design={design} />
+          )}
 
-      {/* Chart (non chart-focus) */}
-      {layout !== 'chart-focus' && slide.chartData && slide.chartData.length > 0 && <ChartView data={slide.chartData} theme={theme} chartType={slide.chartType} />}
+          {/* Chart (non chart-focus) */}
+          {layout !== 'chart-focus' && slide.chartData && slide.chartData.length > 0 && <ChartView data={slide.chartData} theme={theme} chartType={slide.chartType} />}
 
-      {/* Table (non table-focus) */}
-      {layout !== 'table-focus' && slide.tableData?.headers && <DataTable data={slide.tableData} theme={theme} />}
+          {/* Table (non table-focus) */}
+          {layout !== 'table-focus' && slide.tableData?.headers && <DataTable data={slide.tableData} theme={theme} />}
 
-      {/* Source */}
-      {slide.source && <p className="text-[5px] mt-1 italic" style={{ color: theme.secondary }}>📎 {slide.source}</p>}
+          {/* Source */}
+          {slide.source && <p className="text-[5px] mt-1 italic" style={{ color: theme.secondary }}>📎 {slide.source}</p>}
+        </div>
+        {hasImage && (
+          <div className="w-[35%] shrink-0 rounded overflow-hidden relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={slide.imageUrl} alt="" className="w-full h-full object-cover rounded" />
+            {slide.imageCredit && (
+              <div className="absolute bottom-0 left-0 right-0 bg-black/40 px-1 py-0.5">
+                <span className="text-[4px] text-white/70">{slide.imageCredit}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </SlideFrame>
   );
 }

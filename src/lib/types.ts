@@ -44,4 +44,6 @@ export interface SlideContent {
   needsImage?: boolean; // deprecated, always false
   tableData?: { headers: string[]; rows: string[][] };
   designNotes?: string;
+  imageUrl?: string;       // Unsplash image URL
+  imageCredit?: string;    // Photographer attribution
 }

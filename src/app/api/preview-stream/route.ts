@@ -5,6 +5,7 @@ import { generateSlidesStreaming } from '@/lib/ai-generator';
 import { checkQuality } from '@/lib/quality-checker';
 import { optimizeSlides } from '@/lib/self-optimizer';
 import { cachePreview } from '../generate/route';
+import { enrichWithImages } from '@/lib/image-service';
 
 export async function POST(req: NextRequest) {
   const { topic, description, pageCount, theme, scenes } = await req.json() as {
@@ -52,8 +53,12 @@ export async function POST(req: NextRequest) {
         }
 
         const previewId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        cachePreview(previewId, slides);
 
+        // Phase 4: Image enrichment (parallel, non-blocking)
+        send('status', { phase: 'images', message: '配图中...' });
+        slides = await enrichWithImages(slides, topic);
+
+        cachePreview(previewId, slides);
         send('done', { previewId, slides, issues, score });
       } catch (e) {
         send('error', { message: (e as Error).message || 'Generation failed' });
