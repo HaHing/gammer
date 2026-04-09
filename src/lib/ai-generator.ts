@@ -32,35 +32,35 @@ function getStructureGuide(pageCount: PageCount): string {
 
 function buildSystemPrompt(theme: StyleTheme, pageCount: PageCount, outline?: OutlineItem[]): string {
   const design = themeDesigns[theme] || themeDesigns.google;
+  const hasOutline = outline && outline.length > 0;
 
-  // When outline exists, use it as THE authoritative structure instead of generic guide
-  const structureSection = outline && outline.length > 0
-    ? `## ⚠️ 用户已确认的大纲结构（最高优先级，必须严格遵循）
-你必须严格按照以下大纲生成内容，不得修改标题方向、不得调整页面顺序、不得增减页数。
-每页的type和layout必须与大纲一致。每页的bullets方向必须围绕大纲中的要点展开。
+  // When outline exists: outline is THE ONLY structure authority, placed FIRST
+  const outlineBlock = hasOutline
+    ? `## ⚠️ 必须严格遵循的大纲（最高优先级）
+严格按照以下${outline.length}页大纲生成。不得修改标题方向、不得调整顺序、不得增减页数。
+每页的type和layout必须与大纲一致。内容必须围绕大纲要点展开。
 
-${outline.map((o, i) => `### 第${i + 1}页 [type=${o.type}, layout=${o.layout}]
-标题方向: ${o.title}
-内容要点: ${o.bullets.join(' | ')}`).join('\n\n')}`
-    : `## 结构：${getStructureGuide(pageCount)}`;
+${outline.map((o, i) => `第${i + 1}页 [${o.type}/${o.layout}] ${o.title}
+  → ${o.bullets.join(' | ')}`).join('\n')}\n\n`
+    : '';
 
-  return `你是McKinsey/BCG级别的咨询顾问。生成严格${pageCount}页的专业演示文稿。
+  return `${outlineBlock}你是McKinsey/BCG级别的咨询顾问。生成严格${pageCount}页的专业演示文稿。
 
 ## 方法论
 - 金字塔原理：结论先行→论据→数据佐证
-- So What：每页标题必须是有观点的结论句（如"市场突破万亿，三朵云格局已定"）
+- So What：每页标题必须是有观点的结论句
 - 数据说话：每个论点必须有研究数据支撑，严禁编造
-- 权威来源：所有数据必须来自权威机构和官方来源（如Gartner、IDC、McKinsey、BCG、Forrester、Statista、各国政府统计局、上市公司财报、行业协会报告等），严禁引用博客、论坛、自媒体
-- 来源标注：每页的source字段必须标注具体机构名+报告名/年份，如"IDC 2024年全球云计算追踪报告"
-- 高密度：每页必须内容饱满，严禁留白。至少5条bullets或3个keyMetrics+3条bullets
+- 权威来源：所有数据必须来自权威机构和官方来源（Gartner、IDC、McKinsey、BCG、Forrester、Statista、政府统计局、上市公司财报等），严禁引用博客、论坛、自媒体
+- 来源标注：每页source字段标注具体机构名+报告名/年份
+- 高密度：每页内容饱满，至少5条bullets或3个keyMetrics+3条bullets
 
 ## 风格：${STYLE_GUIDES[theme] || STYLE_GUIDES.google}
 
-## 主题偏好布局（优先使用）：${design.preferredLayouts.join(', ')}
-## 图表偏好：${design.chartPreference}（市场份额数据用pie/doughnut，趋势数据用line，对比数据用bar）
+## 主题偏好布局：${design.preferredLayouts.join(', ')}
+## 图表偏好：${design.chartPreference}
 ## 指标展示风格：${design.metricsStyle}
 
-${structureSection}
+${hasOutline ? '' : `## 结构：${getStructureGuide(pageCount)}`}
 
 ## 布局（layout）— 智能选择指南
 full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) | chart-focus(需chartData 3-8个+insight+3条bullets) | two-column(每列3-4条bullets，适合对比/分类) | three-column(每列2-3条bullets，适合3个维度) | big-number(需keyMetrics 1个+4条bullets，适合震撼开场) | quote-highlight(insight+4条bullets，适合引用/结论) | table-focus(需tableData 4-8行+insight) | icon-grid(3-6个bullets，每条以emoji开头，适合功能/特性展示) | process-flow(3-6个bullets，按步骤顺序，适合流程/方法论) | funnel(3-5个bullets，从大到小排列，适合转化/筛选)

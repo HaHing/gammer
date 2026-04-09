@@ -405,11 +405,14 @@ export default function Home() {
                   const urls = urlInput.split(/[,，]/).map(u => u.trim()).filter(Boolean);
                   const res = await fetch('/api/fetch-url', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls }),
+                    body: JSON.stringify({ urls, topic }),
                   });
-                  const { texts } = await res.json();
-                  if (texts?.length) {
-                    setDescription(prev => prev ? `${prev}\n\n参考内容：${texts.join('\n\n')}` : `参考内容：${texts.join('\n\n')}`);
+                  const { summary, texts } = await res.json();
+                  if (summary) {
+                    setDescription(prev => prev ? `${prev}\n\n${summary}` : summary);
+                    setUrlInput('');
+                  } else if (texts?.length) {
+                    setDescription(prev => prev ? `${prev}\n\n参考内容：${texts[0].slice(0, 500)}` : `参考内容：${texts[0].slice(0, 500)}`);
                     setUrlInput('');
                   } else { alert('未能提取到内容'); }
                 } catch { alert('URL 提取失败'); }
