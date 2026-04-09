@@ -13,7 +13,7 @@ export interface ThemeConfig {
 }
 
 export type SlideType = 'cover' | 'toc' | 'content' | 'data' | 'comparison' | 'timeline' | 'architecture' | 'summary' | 'action' | 'appendix';
-export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight' | 'table-focus' | 'icon-grid' | 'process-flow' | 'funnel';
+export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight' | 'table-focus' | 'icon-grid' | 'process-flow' | 'funnel' | 'pyramid' | 'problem-solution' | 'highlight';
 
 export interface KeyMetric {
   label: string;

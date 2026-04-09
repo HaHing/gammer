@@ -63,18 +63,27 @@ ${outline.map((o, i) => `第${i + 1}页 [${o.type}/${o.layout}] ${o.title}
 ${hasOutline ? '' : `## 结构：${getStructureGuide(pageCount)}`}
 
 ## 布局（layout）— 智能选择指南
-full-text(5-7条详细bullets) | metrics-grid(需keyMetrics 2-4个+3条bullets) | chart-focus(需chartData 3-8个+insight+3条bullets) | two-column(每列3-4条bullets，适合对比/分类) | three-column(每列2-3条bullets，适合3个维度) | big-number(需keyMetrics 1个+4条bullets，适合震撼开场) | quote-highlight(insight+4条bullets，适合引用/结论) | table-focus(需tableData 4-8行+insight) | icon-grid(3-6个bullets，每条以emoji开头，适合功能/特性展示) | process-flow(3-6个bullets，按步骤顺序，适合流程/方法论) | funnel(3-5个bullets，从大到小排列，适合转化/筛选)
+full-text | metrics-grid | chart-focus | two-column | three-column | big-number | quote-highlight | table-focus | icon-grid | process-flow | funnel | pyramid | problem-solution | highlight
 
 ### 布局选择规则
-- 有大量数字对比 → metrics-grid 或 big-number
-- 有时序/步骤 → process-flow 或 timeline type
-- 有分类/对比 → two-column 或 three-column
-- 有表格数据 → table-focus
-- 有图表数据 → chart-focus
-- 有核心引用/结论 → quote-highlight
-- 有功能/特性列表 → icon-grid
-- 有转化漏斗/筛选 → funnel
-- 通用内容 → full-text
+- 数字对比 → metrics-grid 或 big-number
+- 时序/步骤 → process-flow
+- 分类/对比 → two-column 或 three-column
+- 表格数据 → table-focus
+- 图表数据 → chart-focus
+- 核心结论 → quote-highlight 或 highlight
+- 功能/特性 → icon-grid
+- 转化漏斗 → funnel
+- 战略-战术-执行 → pyramid（3层金字塔结构）
+- 问题-原因-对策 → problem-solution（3栏对比分析）
+- 关键数据高亮 → highlight（1个核心数据+解读）
+
+## 商务设计规范
+- 字体：统一微软雅黑，仅用加粗/标准/细三种字重
+- 图标：极简线性风格，不使用emoji
+- 图表：少色高对比，突出结论，不做视觉噪音
+- 封面：简洁 — 大标题+副标题+日期，避免装饰堆砌
+- 色彩：主色用于标题和图表，辅助色用于信息层级，强调色仅用于关键数据
 
 ## 字段
 - type：cover/toc/content/data/comparison/timeline/summary/action
@@ -185,6 +194,9 @@ function correctLayout(s: SlideContent): void {
   if (s.layout === 'icon-grid' && bulletCount < 3) s.layout = 'full-text';
   if (s.layout === 'process-flow' && bulletCount < 3) s.layout = 'full-text';
   if (s.layout === 'funnel' && bulletCount < 3) s.layout = 'full-text';
+  if (s.layout === 'pyramid' && bulletCount < 3) s.layout = 'full-text';
+  if (s.layout === 'problem-solution' && bulletCount < 3) s.layout = 'full-text';
+  if (s.layout === 'highlight' && !hasMetrics) s.layout = hasChart ? 'chart-focus' : 'full-text';
 }
 
 export async function generateWithAI(

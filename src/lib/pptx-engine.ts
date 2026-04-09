@@ -286,6 +286,9 @@ function renderContentSlide(slide: PptxGenJS.Slide, content: SlideContent, theme
     case 'icon-grid': renderIconGridLayout(slide, content, theme, design); break;
     case 'process-flow': renderProcessFlowLayout(slide, content, theme, design); break;
     case 'funnel': renderFunnelLayout(slide, content, theme, design); break;
+    case 'pyramid': renderPyramidLayout(slide, content, theme, design); break;
+    case 'problem-solution': renderProblemSolutionLayout(slide, content, theme, design); break;
+    case 'highlight': renderHighlightLayout(slide, content, theme, design); break;
     default: renderDefaultLayout(slide, content, theme, design); break;
   }
 
@@ -499,6 +502,61 @@ function renderFunnelLayout(slide: PptxGenJS.Slide, content: SlideContent, theme
   });
   if (content.keyMetrics?.length) renderKeyMetrics(slide, content.keyMetrics, theme, design, curY + 0.2, CW);
   if (content.insight) renderInsight(slide, content.insight, theme, curY + (content.keyMetrics?.length ? 1.7 : 0.2), CW, PAD, design.insightStyle);
+}
+
+// ─── Pyramid (战略-战术-执行) ───
+function renderPyramidLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  let curY = 1.1;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
+    curY += 0.5;
+  }
+  const items = content.bullets || [];
+  const layers = items.slice(0, 4);
+  layers.forEach((item, i) => {
+    const ratio = 0.3 + (i / layers.length) * 0.6;
+    const barW = CW * ratio;
+    const barX = PAD + (CW - barW) / 2;
+    const h = 0.9;
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: barX, y: curY, w: barW, h, fill: { color: i === 0 ? c(theme.primary) : c(theme.lightGray) }, rectRadius: 0.06 });
+    slide.addText(item, { x: barX + 0.15, y: curY, w: barW - 0.3, h, fontSize: design.bodySize - 2, color: i === 0 ? 'FFFFFF' : c(theme.text), fontFace: 'Microsoft YaHei', align: 'center', valign: 'middle', shrinkText: true });
+    curY += h + 0.1;
+  });
+  if (curY < MAX_Y && content.insight) renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
+}
+
+// ─── Problem-Solution (问题-原因-对策) ───
+function renderProblemSolutionLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  let curY = 1.1;
+  if (content.subtitle) {
+    slide.addText(content.subtitle, { x: PAD, y: curY, w: CW, h: 0.35, fontSize: design.bodySize - 2, color: c(theme.secondary), fontFace: 'Microsoft YaHei' });
+    curY += 0.5;
+  }
+  const items = content.bullets || [];
+  const third = Math.ceil(items.length / 3);
+  const cols = [items.slice(0, third), items.slice(third, third * 2), items.slice(third * 2)];
+  const headers = ['问题', '原因', '对策'];
+  const colW = (CW - 0.4) / 3;
+  cols.forEach((col, ci) => {
+    const cx = PAD + ci * (colW + 0.2);
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: cx, y: curY, w: colW, h: 0.4, fill: { color: ci === 2 ? c(theme.primary) : c(theme.lightGray) }, rectRadius: 0.04 });
+    slide.addText(headers[ci], { x: cx, y: curY, w: colW, h: 0.4, fontSize: 12, color: ci === 2 ? 'FFFFFF' : c(theme.primary), fontFace: 'Microsoft YaHei', align: 'center', valign: 'middle', bold: true });
+    col.forEach((item, j) => {
+      const iy = curY + 0.5 + j * 0.5;
+      if (iy < MAX_Y) slide.addText(item, { x: cx + 0.1, y: iy, w: colW - 0.2, h: 0.45, fontSize: design.bodySize - 2, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true });
+    });
+  });
+}
+
+// ─── Highlight (关键数据高亮) ───
+function renderHighlightLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
+  const m = content.keyMetrics?.[0];
+  if (m) {
+    slide.addText(`${m.value}${m.unit ? ' ' + m.unit : ''}`, { x: PAD, y: 1.5, w: CW, h: 1.5, fontSize: 48, color: c(theme.primary), fontFace: 'Microsoft YaHei', align: 'center', valign: 'middle', bold: true });
+    slide.addText(m.label, { x: PAD, y: 3.0, w: CW, h: 0.5, fontSize: 16, color: c(theme.secondary), fontFace: 'Microsoft YaHei', align: 'center' });
+  }
+  if (content.insight) renderInsight(slide, content.insight, theme, 3.8, CW, PAD, design.insightStyle);
+  if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, 4.6, CW);
 }
 
 // ─── Summary / Action ───

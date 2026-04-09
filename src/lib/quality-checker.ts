@@ -80,6 +80,15 @@ export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; 
     if (s.layout === 'funnel' && (!s.bullets || s.bullets.length < 3)) {
       issues.push({ page, issue: 'funnel布局需至少3个层级', severity: 'warning' });
     }
+    if (s.layout === 'pyramid' && (!s.bullets || s.bullets.length < 3)) {
+      issues.push({ page, issue: 'pyramid布局需至少3个层级', severity: 'warning' });
+    }
+    if (s.layout === 'problem-solution' && (!s.bullets || s.bullets.length < 3)) {
+      issues.push({ page, issue: 'problem-solution布局需至少3条内容', severity: 'warning' });
+    }
+    if (s.layout === 'highlight' && (!s.keyMetrics || s.keyMetrics.length === 0)) {
+      issues.push({ page, issue: 'highlight布局需至少1个keyMetric', severity: 'warning' });
+    }
 
     // Speaker notes — only flag if completely missing (not just short)
     if (!['cover', 'toc', 'appendix'].includes(s.type) && !s.notes) {

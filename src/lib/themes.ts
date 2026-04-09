@@ -1,74 +1,81 @@
 import { ThemeConfig, StyleTheme } from './types';
 
+/**
+ * 商务风色彩规范：每种风格 1主色 + 3辅助色
+ * 主色：标题、强调、图表主色
+ * secondary：信息层级（副标题、次要文字）
+ * accent：重点提示（关键数据、CTA）
+ * lightGray：背景分层、卡片底色
+ */
 export const themes: Record<StyleTheme, ThemeConfig> = {
   google: {
-    name: 'Google 风格',
-    primary: '#1A73E8',
-    secondary: '#5F6368',
-    accent: '#EA4335',
+    name: '经典蓝',
+    primary: '#1A3C6E',     // 深藏青 — 标题/图表主色
+    secondary: '#5A6B7F',   // 中性灰蓝 — 副标题/次要信息
+    accent: '#2E7DB5',      // 青蓝 — 重点提示/强调
     background: '#FFFFFF',
-    text: '#202124',
-    lightGray: '#F1F3F4',
-    description: '简洁留白、数据驱动、色块分区',
+    text: '#1F2937',        // 正文深灰
+    lightGray: '#F4F6F8',   // 浅灰 — 背景分层
+    description: '权威·专业·数据驱动',
   },
   amazon: {
-    name: 'Amazon 风格',
-    primary: '#232F3E',
-    secondary: '#FF9900',
-    accent: '#146EB4',
+    name: '商务藏青',
+    primary: '#1B2A4A',     // 藏青 — 标题
+    secondary: '#6B7280',   // 中性灰 — 信息层级
+    accent: '#C8963E',      // 低饱和金 — 重点提示
     background: '#FFFFFF',
-    text: '#0F1111',
-    lightGray: '#F5F5F5',
-    description: '高信息密度、叙事性强、六页纸思维',
+    text: '#1F2937',
+    lightGray: '#F5F6F7',
+    description: '高密度·叙事性·信息导向',
   },
   microsoft: {
-    name: 'Microsoft 风格',
-    primary: '#0078D4',
-    secondary: '#50E6FF',
-    accent: '#D83B01',
+    name: '专业蓝灰',
+    primary: '#1E3A5F',     // 深蓝 — 标题
+    secondary: '#6E7B8B',   // 蓝灰 — 信息层级
+    accent: '#3B82B0',      // 中蓝 — 强调
     background: '#FFFFFF',
-    text: '#323130',
-    lightGray: '#F3F2F1',
-    description: '结构清晰、图标体系完整、蓝灰色调',
+    text: '#1F2937',
+    lightGray: '#F3F5F7',
+    description: '结构清晰·蓝灰色调·专业',
   },
   deloitte: {
-    name: 'Deloitte 风格',
-    primary: '#86BC25',
-    secondary: '#0D8390',
-    accent: '#43B02A',
+    name: '咨询绿',
+    primary: '#1A3C34',     // 深墨绿 — 标题
+    secondary: '#5A6B63',   // 灰绿 — 信息层级
+    accent: '#5B8C3E',      // 低饱和绿 — 强调
     background: '#FFFFFF',
-    text: '#333333',
-    lightGray: '#F2F2F2',
-    description: '专业严谨、数据图表规范、脚注完整',
+    text: '#1F2937',
+    lightGray: '#F4F6F4',
+    description: '严谨·规范·数据图表',
   },
   pwc: {
-    name: 'PwC 风格',
-    primary: '#D04A02',
-    secondary: '#2D2D2D',
-    accent: '#EB8C00',
+    name: '暖色商务',
+    primary: '#4A2C1A',     // 深棕 — 标题
+    secondary: '#7B6B5D',   // 暖灰 — 信息层级
+    accent: '#B8860B',      // 暗金 — 强调
     background: '#FFFFFF',
-    text: '#2D2D2D',
-    lightGray: '#F5F5F5',
-    description: '专业严谨、暖色调、结构化表达',
+    text: '#1F2937',
+    lightGray: '#F7F5F3',
+    description: '暖色调·结构化·高可信度',
   },
   brand: {
-    name: '炫彩紫色系',
-    primary: '#7C3AED',
-    secondary: '#A78BFA',
-    accent: '#EC4899',
+    name: '品牌定制',
+    primary: '#2D1B69',     // 深紫 — 标题
+    secondary: '#6B6B8D',   // 灰紫 — 信息层级
+    accent: '#6C5CE7',      // 中紫 — 强调
     background: '#FFFFFF',
-    text: '#1E1B4B',
-    lightGray: '#F5F3FF',
-    description: '渐变紫色·科技感·品牌定制',
+    text: '#1F2937',
+    lightGray: '#F5F3FA',
+    description: '品牌色·科技感·定制',
   },
   haio: {
-    name: 'Haio 极简商务',
-    primary: '#2563EB',
-    secondary: '#4F5565',
-    accent: '#0D9488',
+    name: '极简深蓝',
+    primary: '#0F2B46',     // 极深蓝 — 标题
+    secondary: '#5C6B7A',   // 冷灰 — 信息层级
+    accent: '#2A7AB5',      // 青蓝 — 强调
     background: '#FAFBFC',
-    text: '#2D3142',
-    lightGray: '#F3F4F6',
-    description: '深色封面·卡片布局·极简专业',
+    text: '#1F2937',
+    lightGray: '#F1F4F7',
+    description: '极简·深色封面·高端商务',
   },
 };

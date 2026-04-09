@@ -124,7 +124,10 @@ function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideCo
       {layout === 'icon-grid' && <IconGrid bullets={slide.bullets || []} theme={theme} />}
       {layout === 'process-flow' && <ProcessFlow bullets={slide.bullets || []} theme={theme} />}
       {layout === 'funnel' && <Funnel bullets={slide.bullets || []} theme={theme} />}
-      {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
+      {layout === 'pyramid' && <Pyramid bullets={slide.bullets || []} theme={theme} />}
+      {layout === 'problem-solution' && <ProblemSolution bullets={slide.bullets || []} theme={theme} />}
+      {layout === 'highlight' && <Highlight metric={slide.keyMetrics?.[0]} insight={slide.insight} theme={theme} />}
+      {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel', 'pyramid', 'problem-solution', 'highlight'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
         <BulletList bullets={slide.bullets} theme={theme} design={design} />
       )}
 
@@ -448,6 +451,57 @@ function Funnel({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Pyramid (战略-战术-执行) ───
+function Pyramid({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
+  const layers = bullets.slice(0, 4);
+  return (
+    <div className="mt-2 flex flex-col items-center gap-0.5">
+      {layers.map((item, i) => {
+        const w = 30 + (i / layers.length) * 60;
+        return (
+          <div key={i} className="text-center py-1 text-[6px] font-medium" style={{
+            width: `${w}%`, background: i === 0 ? theme.primary : theme.lightGray,
+            color: i === 0 ? '#fff' : theme.text, borderLeft: `2px solid ${theme.primary}`,
+          }}>{item}</div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Problem-Solution (问题-原因-对策) ───
+function ProblemSolution({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
+  const cols = [bullets.slice(0, Math.ceil(bullets.length / 3)), bullets.slice(Math.ceil(bullets.length / 3), Math.ceil(bullets.length * 2 / 3)), bullets.slice(Math.ceil(bullets.length * 2 / 3))];
+  const headers = ['问题', '原因', '对策'];
+  return (
+    <div className="grid grid-cols-3 gap-1.5 mt-1">
+      {cols.map((col, i) => (
+        <div key={i}>
+          <div className="text-[6px] font-bold text-center py-0.5 rounded-t" style={{ background: i === 2 ? theme.primary : theme.lightGray, color: i === 2 ? '#fff' : theme.primary }}>{headers[i]}</div>
+          {col.map((b, j) => (
+            <div key={j} className="text-[5px] py-0.5 px-1 border-b" style={{ borderColor: theme.lightGray, color: theme.text }}>{b}</div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Highlight (关键数据高亮) ───
+function Highlight({ metric, insight, theme }: { metric?: { label: string; value: string; unit?: string }; insight?: string; theme: ThemeConfig }) {
+  return (
+    <div className="mt-2 text-center">
+      {metric && (
+        <>
+          <div className="text-[24px] font-bold" style={{ color: theme.primary }}>{metric.value}{metric.unit ? ` ${metric.unit}` : ''}</div>
+          <div className="text-[7px] mt-0.5" style={{ color: theme.secondary }}>{metric.label}</div>
+        </>
+      )}
+      {insight && <div className="mt-1.5 text-[6px] px-3 py-1 rounded mx-auto inline-block" style={{ background: theme.lightGray, color: theme.text }}>{insight}</div>}
     </div>
   );
 }
