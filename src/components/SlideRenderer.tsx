@@ -112,7 +112,7 @@ function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideCo
       {slide.keyMetrics && slide.keyMetrics.length > 0 && <MetricsRow metrics={slide.keyMetrics} theme={theme} />}
 
       {/* Insight */}
-      {slide.insight && <InsightBox insight={slide.insight} theme={theme} />}
+      {slide.insight && <InsightBox insight={slide.insight} theme={theme} style={design.insightStyle} />}
 
       {/* Layout-specific content */}
       {layout === 'two-column' && <TwoColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />}
@@ -159,7 +159,7 @@ function TimelineSlide({ slide, theme, design, pageNum, total }: { slide: SlideC
           ))}
         </div>
       </div>
-      {slide.insight && <InsightBox insight={slide.insight} theme={theme} />}
+      {slide.insight && <InsightBox insight={slide.insight} theme={theme} style={design.insightStyle} />}
     </SlideFrame>
   );
 }
@@ -175,7 +175,7 @@ function ComparisonSlide({ slide, theme, design, pageNum, total }: { slide: Slid
       ) : (
         <TwoColumnBullets bullets={slide.bullets || []} theme={theme} design={design} />
       )}
-      {slide.insight && <InsightBox insight={slide.insight} theme={theme} />}
+      {slide.insight && <InsightBox insight={slide.insight} theme={theme} style={design.insightStyle} />}
     </SlideFrame>
   );
 }
@@ -238,7 +238,21 @@ function MetricsRow({ metrics, theme }: { metrics: NonNullable<SlideContent['key
   );
 }
 
-function InsightBox({ insight, theme }: { insight: string; theme: ThemeConfig }) {
+function InsightBox({ insight, theme, style }: { insight: string; theme: ThemeConfig; style?: string }) {
+  if (style === 'banner') {
+    return (
+      <div className="my-1 px-2 py-1 rounded text-[6px] font-medium text-white" style={{ background: theme.primary }}>
+        💡 {insight}
+      </div>
+    );
+  }
+  if (style === 'box') {
+    return (
+      <div className="my-1 px-2 py-1 rounded text-[6px] font-medium shadow-sm" style={{ background: theme.lightGray, borderLeft: `2px solid ${theme.accent}`, color: theme.text }}>
+        💡 {insight}
+      </div>
+    );
+  }
   return (
     <div className="my-1 px-2 py-1 rounded text-[6px] font-medium" style={{ background: theme.lightGray, borderLeft: `2px solid ${theme.primary}`, color: theme.text }}>
       💡 {insight}

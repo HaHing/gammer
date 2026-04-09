@@ -149,7 +149,21 @@ function renderKeyMetrics(slide: PptxGenJS.Slide, metrics: SlideContent['keyMetr
   return y + 1.55;
 }
 
-function renderInsight(slide: PptxGenJS.Slide, insight: string, theme: ThemeConfig, y: number, w: number, x: number = PAD): number {
+function renderInsight(slide: PptxGenJS.Slide, insight: string, theme: ThemeConfig, y: number, w: number, x: number = PAD, insightStyle?: string): number {
+  if (insightStyle === 'banner') {
+    // Full-width banner style (Deloitte/Brand)
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x, y, w, h: 0.65, fill: { color: c(theme.primary) }, rectRadius: 0.08 });
+    slide.addText(`💡 ${insight}`, { x: x + 0.2, y, w: w - 0.4, h: 0.65, fontSize: 11, color: 'FFFFFF', fontFace: 'Microsoft YaHei', valign: 'middle', bold: true });
+    return y + 0.8;
+  }
+  if (insightStyle === 'box') {
+    // Boxed style with background (Microsoft/PwC)
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, { x, y, w, h: 0.65, fill: { color: c(theme.lightGray) }, rectRadius: 0.08, shadow: { type: 'outer', blur: 4, offset: 1, color: '000000', opacity: 0.06 } });
+    slide.addShape('rect' as PptxGenJS.ShapeType, { x, y, w: 0.06, h: 0.65, fill: { color: c(theme.accent) } });
+    slide.addText(`💡 ${insight}`, { x: x + 0.2, y, w: w - 0.4, h: 0.65, fontSize: 11, color: c(theme.text), fontFace: 'Microsoft YaHei', valign: 'middle', bold: true });
+    return y + 0.8;
+  }
+  // Default: bar style
   slide.addShape('roundRect' as PptxGenJS.ShapeType, { x, y, w, h: 0.6, fill: { color: c(theme.lightGray) }, rectRadius: 0.08 });
   slide.addShape('rect' as PptxGenJS.ShapeType, { x, y, w: 0.06, h: 0.6, fill: { color: c(theme.primary) } });
   slide.addText(`💡 ${insight}`, { x: x + 0.2, y, w: w - 0.4, h: 0.6, fontSize: 11, color: c(theme.text), fontFace: 'Microsoft YaHei', valign: 'middle', bold: true });
@@ -284,7 +298,7 @@ function renderBigNumber(slide: PptxGenJS.Slide, content: SlideContent, theme: T
       slide.addText(arrow, { x: W / 2 - 0.5, y: 4.1, w: 1, h: 0.5, fontSize: 24, color: tColor, align: 'center', bold: true });
     }
   }
-  if (content.insight) renderInsight(slide, content.insight, theme, 4.8, CW - 2, 1.5);
+  if (content.insight) renderInsight(slide, content.insight, theme, 4.8, CW - 2, 1.5, design.insightStyle);
   if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, 5.6, CW - 2, 1.5);
 }
 
@@ -312,7 +326,7 @@ function renderTwoColumn(slide: PptxGenJS.Slide, content: SlideContent, theme: T
   renderBullets(slide, bullets.slice(0, mid), theme, design, curY + 0.15, colW, PAD);
   slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: PAD + colW + 0.4, y: curY, w: colW, h: 0.01, fill: { color: c(theme.accent) }, rectRadius: 0 });
   renderBullets(slide, bullets.slice(mid), theme, design, curY + 0.15, colW, PAD + colW + 0.4);
-  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW, PAD, design.insightStyle);
 }
 
 function renderThreeColumn(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
@@ -331,7 +345,7 @@ function renderThreeColumn(slide: PptxGenJS.Slide, content: SlideContent, theme:
     slide.addText(`${i + 1}`, { x: cx, y: curY, w: colW, h: 0.35, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
     renderBullets(slide, col, theme, design, curY + 0.5, colW - 0.2, cx + 0.1);
   });
-  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW, PAD, design.insightStyle);
 }
 
 function renderMetricsGridLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig, design: ThemeDesign) {
@@ -341,7 +355,7 @@ function renderMetricsGridLayout(slide: PptxGenJS.Slide, content: SlideContent, 
     curY += 0.45;
   }
   if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
+  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
   if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
 }
 
@@ -373,7 +387,7 @@ function renderTableFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, t
   if (content.tableData?.headers?.length) {
     curY = renderTable(slide, content.tableData, theme, design, PAD, curY, CW);
   }
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
+  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
   if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
 }
 
@@ -384,7 +398,7 @@ function renderChartFocusLayout(slide: PptxGenJS.Slide, content: SlideContent, t
     curY += 0.4;
   }
   if (content.chartData?.length) { renderChart(slide, content.chartData, theme, 1.5, curY, CW - 1.6, 3.0, content.chartType); curY += 3.2; }
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
+  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
   if (content.bullets?.length) renderBullets(slide, content.bullets.slice(0, 3), theme, design, curY, CW);
 }
 
@@ -395,7 +409,7 @@ function renderDefaultLayout(slide: PptxGenJS.Slide, content: SlideContent, them
     curY += 0.42;
   }
   if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
+  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
   if (content.bullets?.length) curY = renderBullets(slide, content.bullets, theme, design, curY, CW);
   if (content.chartData?.length) renderChart(slide, content.chartData, theme, PAD, curY, CW, 2.2, content.chartType);
 }
@@ -423,7 +437,7 @@ function renderIconGridLayout(slide: PptxGenJS.Slide, content: SlideContent, the
     slide.addText(emoji, { x: cx, y: cy + 0.15, w: cellW, h: 0.4, fontSize: 18, align: 'center' });
     slide.addText(text, { x: cx + 0.15, y: cy + 0.6, w: cellW - 0.3, h: cellH - 0.75, fontSize: design.bodySize - 3, color: c(theme.text), fontFace: 'Microsoft YaHei', align: 'center', shrinkText: true });
   });
-  if (content.insight) renderInsight(slide, content.insight, theme, curY + rows * (cellH + 0.15) + 0.1, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, curY + rows * (cellH + 0.15) + 0.1, CW, PAD, design.insightStyle);
 }
 
 // ─── Process Flow ───
@@ -449,7 +463,7 @@ function renderProcessFlowLayout(slide: PptxGenJS.Slide, content: SlideContent, 
     // Step text
     slide.addText(step, { x: sx, y: curY + 0.95, w: stepW, h: 1.2, fontSize: design.bodySize - 3, color: c(theme.text), fontFace: 'Microsoft YaHei', align: 'center', shrinkText: true });
   });
-  if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW, PAD, design.insightStyle);
 }
 
 // ─── Funnel ───
@@ -472,7 +486,7 @@ function renderFunnelLayout(slide: PptxGenJS.Slide, content: SlideContent, theme
     curY += stepH;
   });
   if (content.keyMetrics?.length) renderKeyMetrics(slide, content.keyMetrics, theme, design, curY + 0.2, CW);
-  if (content.insight) renderInsight(slide, content.insight, theme, curY + (content.keyMetrics?.length ? 1.7 : 0.2), CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, curY + (content.keyMetrics?.length ? 1.7 : 0.2), CW, PAD, design.insightStyle);
 }
 
 // ─── Summary / Action ───
@@ -482,7 +496,7 @@ function renderSummary(slide: PptxGenJS.Slide, content: SlideContent, theme: The
   slide.addShape('rect' as PptxGenJS.ShapeType, { x: PAD, y: 0.98, w: 1.5, h: 0.04, fill: { color: c(theme.accent) } });
   let curY = 1.2;
   if (content.keyMetrics?.length) curY = renderKeyMetrics(slide, content.keyMetrics, theme, design, curY, CW);
-  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW);
+  if (content.insight) curY = renderInsight(slide, content.insight, theme, curY, CW, PAD, design.insightStyle);
   if (content.bullets?.length) renderBullets(slide, content.bullets, theme, design, curY, CW);
   addFooter(slide, theme, design, pageNum, total);
 }
@@ -514,7 +528,7 @@ function renderComparison(slide: PptxGenJS.Slide, content: SlideContent, theme: 
     slide.addText(labelB, { x: PAD + colW + 0.4, y: curY, w: colW, h: 0.4, fontSize: 11, color: 'FFFFFF', align: 'center', bold: true });
     renderBullets(slide, bullets.slice(mid), theme, design, curY + 0.5, colW, PAD + colW + 0.4);
   }
-  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.8, CW, PAD, design.insightStyle);
   addFooter(slide, theme, design, pageNum, total);
 }
 
@@ -534,7 +548,7 @@ function renderTimeline(slide: PptxGenJS.Slide, content: SlideContent, theme: Th
       slide.addText(item, { x: cx - stepW / 2 + 0.1, y: lineY + 0.4, w: stepW - 0.2, h: 1.2, fontSize: 9, color: c(theme.text), align: 'center', fontFace: 'Microsoft YaHei' });
     });
   }
-  if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW);
+  if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW, PAD, design.insightStyle);
   addFooter(slide, theme, design, pageNum, total);
 }
 
