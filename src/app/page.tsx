@@ -119,6 +119,7 @@ export default function Home() {
   const [previewStatus, setPreviewStatus] = useState('');
   const [progressPhase, setProgressPhase] = useState('');
   const [slidesDone, setSlidesDone] = useState(0);
+  const [taskLogs, setTaskLogs] = useState<string[]>([]);
   // Outline state
   const [outline, setOutline] = useState<OutlineItem[] | null>(null);
   const [researchId, setResearchId] = useState('');
@@ -185,7 +186,7 @@ export default function Home() {
   const handlePreview = async () => {
     if (!topic.trim()) return;
     setPreviewing(true); setPreviewData(null); setActiveSlide(0);
-    setPreviewStatus('搜索数据中...'); setProgressPhase('research'); setSlidesDone(0);
+    setPreviewStatus('搜索数据中...'); setProgressPhase('research'); setSlidesDone(0); setTaskLogs([]);
     try {
       const res = await fetch('/api/preview-stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -214,6 +215,7 @@ export default function Home() {
               setPreviewData(prev => ({ previewId: prev?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch }));
             } else if (eventType === 'done') { setPreviewData({ ...data, research: streamResearch }); setProgressPhase('done'); pushHistory({ ...data, research: streamResearch }); }
             else if (eventType === 'error') { throw new Error(data.message); }
+            else if (eventType === 'log') { setTaskLogs(prev => [...prev, data.text]); }
           }
         }
       }
@@ -438,6 +440,20 @@ export default function Home() {
           {(outlineLoading || previewing) && (
             <div className="max-w-[720px] mx-auto px-6 pt-6">
               <Progress phase={outlineLoading ? 'outline' : progressPhase} done={slidesDone} total={pageCount} accent={palette.primary} />
+              {/* Task log panel */}
+              {taskLogs.length > 0 && (
+                <div className="mt-2 p-3 rounded-xl max-h-[200px] overflow-y-auto" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-1)' }}>处理详情</span>
+                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-2)' }}>{taskLogs.length} 条</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {taskLogs.map((log, i) => (
+                      <p key={i} className="text-[11px] leading-relaxed" style={{ color: i === taskLogs.length - 1 ? 'var(--text-0)' : 'var(--text-2)' }}>{log}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -448,7 +464,7 @@ export default function Home() {
               onSlidesReplace={sl => { const u = { ...previewData, slides: sl }; setPreviewData(u); pushHistory(u); }}
               canUndo={historyIdx > 0} canRedo={historyIdx < history.length - 1} onUndo={undo} onRedo={redo} />
           ) : outline && !outlineLoading && !previewing ? (
-            <div className="max-w-[720px] mx-auto px-6 py-6">
+            <div className="h-full px-8 py-6">
               <OutlineEditor outline={outline} setOutline={setOutline} accent={palette.primary} research={outlineResearch} />
             </div>
           ) : !hasContent ? (
@@ -727,10 +743,10 @@ function OutlineEditor({ outline, setOutline, accent, research }: {
   };
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[13px] font-semibold" style={{ color: 'var(--text-0)' }}>大纲编辑</span>
-        <span className="text-[11px] font-medium" style={{ color: 'var(--text-2)' }}>{outline.length} 页</span>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3 shrink-0">
+        <span className="text-[15px] font-semibold" style={{ color: 'var(--text-0)' }}>大纲编辑</span>
+        <span className="text-[12px] font-medium" style={{ color: 'var(--text-2)' }}>{outline.length} 页 · 编辑后点击「确认生成」</span>
       </div>
 
       {research?.summary && (
@@ -739,45 +755,45 @@ function OutlineEditor({ outline, setOutline, accent, research }: {
         </div>
       )}
 
-      <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+      <div className="space-y-2.5 flex-1 overflow-y-auto">
         {outline.map((item, i) => (
-          <div key={i} className="p-3 rounded-xl transition-all" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span className="text-[10px] font-bold w-5 h-5 rounded flex items-center justify-center text-white" style={{ background: accent }}>{i + 1}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{item.type}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{item.layout}</span>
+          <div key={i} className="p-4 rounded-xl transition-all" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-bold w-6 h-6 rounded flex items-center justify-center text-white" style={{ background: accent }}>{i + 1}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{item.type}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{item.layout}</span>
               <div className="flex-1" />
-              <button onClick={() => move(i, -1)} disabled={i === 0} className="text-[10px] px-1 disabled:opacity-20" style={{ color: accent }}>↑</button>
-              <button onClick={() => move(i, 1)} disabled={i === outline.length - 1} className="text-[10px] px-1 disabled:opacity-20" style={{ color: accent }}>↓</button>
-              <button onClick={() => add(i)} className="text-[10px] px-1" style={{ color: 'var(--success)' }}>+</button>
-              <button onClick={() => remove(i)} disabled={outline.length <= 3} className="text-[10px] px-1 disabled:opacity-20" style={{ color: 'var(--err)' }}>×</button>
+              <button onClick={() => move(i, -1)} disabled={i === 0} className="text-[11px] px-1.5 disabled:opacity-20" style={{ color: accent }}>↑</button>
+              <button onClick={() => move(i, 1)} disabled={i === outline.length - 1} className="text-[11px] px-1.5 disabled:opacity-20" style={{ color: accent }}>↓</button>
+              <button onClick={() => add(i)} className="text-[11px] px-1.5" style={{ color: 'var(--success)' }}>+</button>
+              <button onClick={() => remove(i)} disabled={outline.length <= 3} className="text-[11px] px-1.5 disabled:opacity-20" style={{ color: 'var(--err)' }}>×</button>
             </div>
             <input value={item.title} onChange={e => update(i, 'title', e.target.value)}
-              className="w-full text-[12px] font-medium px-2 py-1 rounded outline-none mb-1"
+              className="w-full text-[14px] font-medium px-3 py-1.5 rounded-lg outline-none mb-1.5"
               style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
             {item.bullets.map((b, j) => (
-              <div key={j} className="flex gap-1 mb-0.5">
-                <span className="text-[9px] mt-1" style={{ color: accent }}>•</span>
+              <div key={j} className="flex gap-1.5 mb-1">
+                <span className="text-[10px] mt-1.5" style={{ color: accent }}>•</span>
                 <input value={b} onChange={e => {
                   const newBullets = [...item.bullets]; newBullets[j] = e.target.value;
                   update(i, 'bullets', newBullets);
                 }}
-                  className="flex-1 text-[11px] px-1.5 py-0.5 rounded outline-none"
+                  className="flex-1 text-[13px] px-2 py-1 rounded-lg outline-none"
                   style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }} />
                 <button onClick={() => update(i, 'bullets', item.bullets.filter((_, k) => k !== j))}
-                  className="text-[9px] px-1" style={{ color: 'var(--text-2)' }}>×</button>
+                  className="text-[10px] px-1.5" style={{ color: 'var(--text-2)' }}>×</button>
               </div>
             ))}
             <button onClick={() => update(i, 'bullets', [...item.bullets, '新要点'])}
-              className="text-[9px] mt-0.5" style={{ color: accent }}>+ 添加要点</button>
+              className="text-[11px] mt-1" style={{ color: accent }}>+ 添加要点</button>
           </div>
         ))}
       </div>
 
-      <p className="mt-3 text-[11px]" style={{ color: 'var(--text-2)' }}>
+      <p className="mt-3 text-[12px] shrink-0" style={{ color: 'var(--text-2)' }}>
         编辑大纲后点击「确认生成」，AI 将根据调整后的大纲重新检索数据并生成内容。
       </p>
-    </>
+    </div>
   );
 }
 
