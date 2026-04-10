@@ -16,7 +16,7 @@ interface QualityIssue {
 // Self-optimization: analyze generated slides and fix critical issues
 export async function optimizeSlides(
   slides: SlideContent[], issues: QualityIssue[], score: number,
-  pageCount: PageCount, theme: StyleTheme
+  pageCount: PageCount, _theme: StyleTheme
 ): Promise<SlideContent[]> {
   // Only optimize if score is below threshold or there are errors
   const errors = issues.filter(i => i.severity === 'error');
@@ -73,7 +73,7 @@ ${slidesJSON}
     const optimized = safeParseJSONArray(text) as SlideContent[] | null;
     if (optimized && optimized.length === pageCount) {
       // Preserve image data from original slides
-      optimized.forEach((s, i) => {
+      optimized.forEach((s, _i) => {
         s.needsImage = false;
         if (!s.layout) s.layout = 'full-text';
         if (!s.type) s.type = 'content';

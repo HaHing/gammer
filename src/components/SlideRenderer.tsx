@@ -327,7 +327,7 @@ function BigNumber({ metric, theme }: { metric: NonNullable<SlideContent['keyMet
 function QuoteBlock({ text, source, theme }: { text: string; source?: string; theme: ThemeConfig }) {
   return (
     <div className="my-2 px-3 py-2 rounded relative" style={{ background: theme.lightGray }}>
-      <span className="absolute top-0 left-1 text-[20px] leading-none opacity-20" style={{ color: theme.primary }}>"</span>
+      <span className="absolute top-0 left-1 text-[20px] leading-none opacity-20" style={{ color: theme.primary }}>&ldquo;</span>
       <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded" style={{ background: theme.primary }} />
       <p className="text-[8px] italic pl-3 leading-relaxed" style={{ color: theme.text }}>{text}</p>
       {source && <p className="text-[6px] text-right mt-1 italic" style={{ color: theme.secondary }}>— {source}</p>}
@@ -344,13 +344,13 @@ function PieChart({ data, theme, isDoughnut }: { data: NonNullable<SlideContent[
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return null;
   const colors = [theme.primary, theme.accent, theme.secondary, '#34A853', '#FBBC04', '#EA4335'];
-  let cumAngle = 0;
 
-  // Build SVG pie segments
+  // Pre-compute cumulative angles
+  const angles = data.reduce<number[]>((acc, d) => { acc.push((acc[acc.length - 1] || 0) + (d.value / total) * 360); return acc; }, []);
+
   const segments = data.map((d, i) => {
     const angle = (d.value / total) * 360;
-    const startAngle = cumAngle;
-    cumAngle += angle;
+    const startAngle = i === 0 ? 0 : angles[i - 1];
     const startRad = (startAngle - 90) * Math.PI / 180;
     const endRad = (startAngle + angle - 90) * Math.PI / 180;
     const largeArc = angle > 180 ? 1 : 0;

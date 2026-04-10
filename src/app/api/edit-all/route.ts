@@ -10,7 +10,7 @@ const client = new Anthropic({
 });
 
 export async function POST(req: NextRequest) {
-  const { previewId, instruction, theme } = await req.json() as {
+  const { previewId, instruction, theme: _theme } = await req.json() as {
     previewId: string; instruction: string; theme: StyleTheme;
   };
 

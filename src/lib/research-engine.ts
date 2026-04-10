@@ -150,7 +150,7 @@ export async function conductResearch(topic: string, description: string, scenes
   console.log(`[Research] Starting for: "${topic}" (${pageCount || 10} pages)`);
 
   // Phase 1: Deep web search with 20+ queries
-  let report = await deepWebSearch(topic, description, scenes);
+  const report = await deepWebSearch(topic, description, scenes);
 
   // Phase 2: If web search failed or insufficient, use knowledge fallback
   if (report.keyStats.length < 8 || report.results[0]?.findings?.length < 15) {
@@ -180,7 +180,7 @@ async function deepWebSearch(topic: string, description: string, scenes: string)
       model: 'claude-sonnet-4-20250514',
       max_tokens: 12000,
       tools: [{
-        type: 'web_search_20250305' as 'web_search_20250305',
+        type: 'web_search_20250305' as const,
         name: 'web_search',
         max_uses: 10,
       }],
@@ -236,6 +236,7 @@ findings至少15条，keyStats至少10个。`
 }
 
 // Phase 3: Synthesize a content strategy from research data
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function synthesizeContentStrategy(
   topic: string, description: string, scenes: string, pageCount: number, research: ResearchReport
 ): Promise<string> {

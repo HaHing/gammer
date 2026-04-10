@@ -14,7 +14,7 @@ const researchCache = new Map<string, ResearchReport>();
 export function getCachedResearch(id: string) { return researchCache.get(id); }
 
 export async function POST(req: NextRequest) {
-  const { topic, description, pageCount, theme, scenes } = await req.json() as {
+  const { topic, description, pageCount, theme: _theme, scenes } = await req.json() as {
     topic: string; description: string; pageCount: PageCount; theme: StyleTheme; scenes: string;
   };
 

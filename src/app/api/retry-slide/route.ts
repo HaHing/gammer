@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   console.log(`[Retry] previewId=${previewId}, slide=${slideIndex}, instruction="${instruction}"`);
 
-  let slides = getCachedPreview(previewId);
+  const slides = getCachedPreview(previewId);
   if (!slides) {
     console.log('[Retry] Cache miss — trying to reconstruct from request');
     // If cache expired, return specific error code so frontend can handle it
