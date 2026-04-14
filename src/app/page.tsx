@@ -24,7 +24,7 @@ export default function LandingPage() {
           <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-1" style={{ background: 'var(--bg-2, #222)', color: 'var(--text-2, #888)' }}>v0.1</span>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/gallery" className="text-sm hover:opacity-80" style={{ color: 'var(--text-2, #888)' }}>模板</Link>
+          <a href="#templates" className="text-sm hover:opacity-80" style={{ color: 'var(--text-2, #888)' }}>模板</a>
           <Link href="/create" className="text-sm px-4 py-2 rounded-lg font-medium text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>开始创建</Link>
         </div>
       </header>
@@ -66,7 +66,7 @@ export default function LandingPage() {
       </section>
 
       {/* Templates */}
-      <section className="py-16 px-8 max-w-5xl mx-auto">
+      <section id="templates" className="py-16 px-8 max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold mb-8 text-center">8 种专业场景模板</h2>
         <div className="grid grid-cols-4 gap-4">
           {templates.map((t) => (

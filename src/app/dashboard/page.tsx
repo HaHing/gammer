@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { templates } from '@/data/templates';
 
 interface ProjectSummary {
@@ -18,13 +19,16 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { status } = useSession();
 
   useEffect(() => {
+    if (status === 'unauthenticated') { router.replace('/login'); return; }
+    if (status !== 'authenticated') return;
     fetch('/api/projects').then(r => r.ok ? r.json() : []).then(d => {
       setProjects(Array.isArray(d) ? d : []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [status, router]);
 
   const deleteProject = async (id: string) => {
     if (!confirm('确定删除？')) return;
