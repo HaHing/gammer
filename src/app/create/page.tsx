@@ -690,6 +690,19 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
         </div>
       )}
 
+      {/* Thumbnail Navigation */}
+      <div className="max-w-[900px] mx-auto mb-4 flex gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
+        {slides.map((sl, i) => (
+          <button key={i} onClick={() => { setActive(i); document.getElementById(`slide-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
+            className={`shrink-0 w-16 h-10 rounded-md overflow-hidden border-2 transition-all ${i === active ? 'scale-105' : 'opacity-60 hover:opacity-90'}`}
+            style={{ borderColor: i === active ? accent : 'transparent' }}>
+            <div className="w-full h-full flex items-center justify-center text-[5px] font-bold" style={{ background: theme.background, color: theme.primary }}>
+              {i + 1}
+            </div>
+          </button>
+        ))}
+      </div>
+
       {/* Slide Gallery: vertical scroll, each slide full-width */}
       <div className="max-w-[900px] mx-auto space-y-6">
         {slides.map((sl, i) => (
