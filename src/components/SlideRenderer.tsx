@@ -4,6 +4,7 @@ import type { SlideContent, ThemeConfig } from '@/lib/types';
 import type { ThemeDesign } from '@/lib/theme-design';
 import { themeDesigns } from '@/lib/theme-design';
 import type { StyleTheme } from '@/lib/types';
+import { EditableText } from '@/components/editor/EditableText';
 
 interface Props {
   slide: SlideContent;
@@ -11,20 +12,22 @@ interface Props {
   themeKey: StyleTheme;
   pageNum: number;
   total: number;
+  editable?: boolean;
+  onUpdate?: (slide: SlideContent) => void;
 }
 
-export default function SlideRenderer({ slide, theme, themeKey, pageNum, total }: Props) {
+export default function SlideRenderer({ slide, theme, themeKey, pageNum, total, editable, onUpdate }: Props) {
   const design = themeDesigns[themeKey] || themeDesigns.google;
 
-  if (slide.type === 'cover') return <CoverSlide slide={slide} theme={theme} design={design} />;
-  if (slide.type === 'toc') return <TocSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} />;
-  if (slide.type === 'timeline') return <TimelineSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} />;
-  if (slide.type === 'comparison') return <ComparisonSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} />;
-  return <ContentSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} />;
+  if (slide.type === 'cover') return <CoverSlide slide={slide} theme={theme} design={design} editable={editable} onUpdate={onUpdate} />;
+  if (slide.type === 'toc') return <TocSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} editable={editable} onUpdate={onUpdate} />;
+  if (slide.type === 'timeline') return <TimelineSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} editable={editable} onUpdate={onUpdate} />;
+  if (slide.type === 'comparison') return <ComparisonSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} editable={editable} onUpdate={onUpdate} />;
+  return <ContentSlide slide={slide} theme={theme} design={design} pageNum={pageNum} total={total} editable={editable} onUpdate={onUpdate} />;
 }
 
 // ─── Cover ───
-function CoverSlide({ slide, theme, design }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign }) {
+function CoverSlide({ slide, theme, design, editable, onUpdate }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; editable?: boolean; onUpdate?: (s: SlideContent) => void }) {
   const isDark = !['centered', 'gradient-bottom', 'split-diagonal'].includes(design.coverStyle);
   const bg = getCoverBg(theme, design);
 
@@ -41,7 +44,9 @@ function CoverSlide({ slide, theme, design }: { slide: SlideContent; theme: Them
           <div className="text-[6px] tracking-[0.2em] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>PROFESSIONAL REPORT</div>
         )}
         <h1 className="text-[14px] font-bold leading-tight mb-1" style={{ color: isDark ? '#fff' : theme.primary }}>
-          {slide.title}
+          {editable && onUpdate ? (
+            <EditableText value={slide.title} onChange={(v) => onUpdate({ ...slide, title: v })} style={{ color: isDark ? '#fff' : theme.primary }} />
+          ) : slide.title}
         </h1>
         {slide.subtitle && (
           <p className="text-[8px] mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.7)' : theme.secondary }}>
@@ -77,10 +82,10 @@ function getCoverBg(theme: ThemeConfig, design: ThemeDesign): React.CSSPropertie
 }
 
 // ─── TOC ───
-function TocSlide({ slide, theme, design, pageNum, total }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number }) {
+function TocSlide({ slide, theme, design, pageNum, total, editable, onUpdate }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number; editable?: boolean; onUpdate?: (s: SlideContent) => void }) {
   return (
     <SlideFrame theme={theme} design={design} pageNum={pageNum} total={total}>
-      <SlideTitle title={slide.title || '议程'} theme={theme} />
+      <SlideTitle title={slide.title || '议程'} theme={theme} editable={editable} onChange={editable && onUpdate ? (v) => onUpdate({ ...slide, title: v }) : undefined} />
       <div className="space-y-1 mt-2">
         {(slide.bullets || []).map((item, i) => (
           <div key={i} className="flex items-center gap-2 py-1 px-2 rounded" style={{ background: i % 2 === 0 ? theme.lightGray : 'transparent' }}>
@@ -96,12 +101,12 @@ function TocSlide({ slide, theme, design, pageNum, total }: { slide: SlideConten
 }
 
 // ─── Content (all layouts) ───
-function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number }) {
+function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number; editable?: boolean; onUpdate?: (s: SlideContent) => void }) {
   const layout = slide.layout || 'full-text';
 
   return (
     <SlideFrame theme={theme} design={design} pageNum={pageNum} total={total}>
-      <SlideTitle title={slide.title} theme={theme} />
+      <SlideTitle title={slide.title} theme={theme} editable={editable} onChange={editable && onUpdate ? (v) => onUpdate({ ...slide, title: v }) : undefined} />
       {slide.subtitle && (
         <p className="text-[7px] mt-0.5 mb-1" style={{ color: theme.secondary, fontStyle: design.subtitleItalic ? 'italic' : 'normal' }}>
           {slide.subtitle}
@@ -144,11 +149,11 @@ function ContentSlide({ slide, theme, design, pageNum, total }: { slide: SlideCo
 }
 
 // ─── Timeline ───
-function TimelineSlide({ slide, theme, design, pageNum, total }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number }) {
+function TimelineSlide({ slide, theme, design, pageNum, total, editable, onUpdate }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number; editable?: boolean; onUpdate?: (s: SlideContent) => void }) {
   const items = slide.bullets || [];
   return (
     <SlideFrame theme={theme} design={design} pageNum={pageNum} total={total}>
-      <SlideTitle title={slide.title} theme={theme} />
+      <SlideTitle title={slide.title} theme={theme} editable={editable} onChange={editable && onUpdate ? (v) => onUpdate({ ...slide, title: v }) : undefined} />
       <div className="relative mt-3 px-2">
         <div className="absolute top-2 left-0 right-0 h-[2px]" style={{ background: theme.primary }} />
         <div className="flex justify-between relative">
@@ -168,10 +173,10 @@ function TimelineSlide({ slide, theme, design, pageNum, total }: { slide: SlideC
 }
 
 // ─── Comparison ───
-function ComparisonSlide({ slide, theme, design, pageNum, total }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number }) {
+function ComparisonSlide({ slide, theme, design, pageNum, total, editable, onUpdate }: { slide: SlideContent; theme: ThemeConfig; design: ThemeDesign; pageNum: number; total: number; editable?: boolean; onUpdate?: (s: SlideContent) => void }) {
   return (
     <SlideFrame theme={theme} design={design} pageNum={pageNum} total={total}>
-      <SlideTitle title={slide.title} theme={theme} />
+      <SlideTitle title={slide.title} theme={theme} editable={editable} onChange={editable && onUpdate ? (v) => onUpdate({ ...slide, title: v }) : undefined} />
       {slide.subtitle && <p className="text-[7px] mb-1" style={{ color: theme.secondary }}>{slide.subtitle}</p>}
       {slide.tableData?.headers ? (
         <DataTable data={slide.tableData} theme={theme} />
@@ -213,10 +218,14 @@ function SlideFrame({ children, theme, design, pageNum, total }: { children: Rea
   );
 }
 
-function SlideTitle({ title, theme }: { title: string; theme: ThemeConfig }) {
+function SlideTitle({ title, theme, editable, onChange }: { title: string; theme: ThemeConfig; editable?: boolean; onChange?: (v: string) => void }) {
   return (
     <div className="mb-1">
-      <h2 className="text-[10px] font-bold leading-tight" style={{ color: theme.primary }}>{title}</h2>
+      {editable && onChange ? (
+        <EditableText value={title} onChange={onChange} className="text-[10px] font-bold leading-tight" style={{ color: theme.primary }} />
+      ) : (
+        <h2 className="text-[10px] font-bold leading-tight" style={{ color: theme.primary }}>{title}</h2>
+      )}
       <div className="w-8 h-[2px] mt-0.5" style={{ background: theme.accent }} />
     </div>
   );
