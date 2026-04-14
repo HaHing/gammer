@@ -133,7 +133,7 @@ function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate
       {layout === 'problem-solution' && <ProblemSolution bullets={slide.bullets || []} theme={theme} />}
       {layout === 'highlight' && <Highlight metric={slide.keyMetrics?.[0]} insight={slide.insight} theme={theme} />}
       {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel', 'pyramid', 'problem-solution', 'highlight'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
-        <BulletList bullets={slide.bullets} theme={theme} design={design} />
+        <BulletList bullets={slide.bullets} theme={theme} design={design} editable={editable} onBulletChange={editable && onUpdate ? (idx, val) => { const b = [...(slide.bullets || [])]; b[idx] = val; onUpdate({ ...slide, bullets: b }); } : undefined} />
       )}
 
       {/* Chart (non chart-focus) */}
@@ -272,7 +272,7 @@ function InsightBox({ insight, theme, style }: { insight: string; theme: ThemeCo
   );
 }
 
-function BulletList({ bullets, theme, design }: { bullets: string[]; theme: ThemeConfig; design: ThemeDesign }) {
+function BulletList({ bullets, theme, design, editable, onBulletChange }: { bullets: string[]; theme: ThemeConfig; design: ThemeDesign; editable?: boolean; onBulletChange?: (idx: number, val: string) => void }) {
   const chars: Record<string, string> = { circle: '●', square: '■', dash: '—', arrow: '▸', number: '' };
   const char = chars[design.bulletStyle] || '●';
   return (
@@ -282,7 +282,9 @@ function BulletList({ bullets, theme, design }: { bullets: string[]; theme: Them
           <span className="shrink-0 text-[5px] mt-0.5" style={{ color: theme.primary }}>
             {design.bulletStyle === 'number' ? `${i + 1}.` : char}
           </span>
-          <span style={{ color: theme.text }}>{b}</span>
+          {editable && onBulletChange
+            ? <EditableText value={b} onChange={(v) => onBulletChange(i, v)} style={{ color: theme.text }} className="text-[7px] leading-snug" />
+            : <span style={{ color: theme.text }}>{b}</span>}
         </div>
       ))}
     </div>

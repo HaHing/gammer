@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { PageCount, StyleTheme, SlideContent, ThemeConfig, OutlineItem } from '@/lib/types';
 import { layoutPresets } from '@/lib/layouts';
 import { templates } from '@/data/templates';
@@ -115,6 +115,7 @@ export default function CreatePage() {
 
 function HomeInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initTopic = searchParams.get('topic') || '';
   const initScene = searchParams.get('scene') || '';
   const matchedTemplate = templates.find(t => t.id === initScene);
@@ -225,7 +226,21 @@ function HomeInner() {
             else if (eventType === 'slide') {
               streamSlides.push(data.slide); setSlidesDone(streamSlides.length);
               setPreviewData(prev => ({ previewId: prev?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch }));
-            } else if (eventType === 'done') { setPreviewData({ ...data, research: streamResearch }); setProgressPhase('done'); pushHistory({ ...data, research: streamResearch }); }
+            } else if (eventType === 'done') {
+              setPreviewData({ ...data, research: streamResearch }); setProgressPhase('done'); pushHistory({ ...data, research: streamResearch });
+              // Auto-save to database
+              try {
+                const res = await fetch('/api/projects', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, slides: data.slides, outline, research: streamResearch, score: data.score }),
+                });
+                if (res.ok) {
+                  const { id } = await res.json();
+                  if (id) setTimeout(() => router.push(`/edit/${id}`), 1500);
+                }
+              } catch {}
+            }
             else if (eventType === 'error') { throw new Error(data.message); }
             else if (eventType === 'log') { setTaskLogs(prev => [...prev, data.text]); }
           }
