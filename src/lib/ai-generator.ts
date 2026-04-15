@@ -79,12 +79,23 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - 关键数据高亮 → highlight（1个核心数据+解读）
 - 架构/流程/关系/网络拓扑 → diagram（AI生成SVG图表）
 
-### diagram 布局专用字段
+### diagram 布局 — 必须积极使用！
+⚠️ 重要：当内容涉及以下任何场景时，必须使用 diagram layout 而不是 full-text：
+- 系统架构（如 Agent架构、微服务架构、技术栈）
+- 业务流程（如用户注册流程、审批流程、数据处理管线）
+- 组织架构、层级关系
+- 网络拓扑、数据流向
+- 决策树、状态机
+- 任何包含"→"箭头、层级关系、节点连接的内容
+
 当 layout 为 "diagram" 时，必须提供 diagramDescription 字段：
-- diagramDescription：用自然语言描述图表内容，例如"用户注册流程：输入手机号→发送验证码→验证→创建账户→完成"
+- diagramDescription：用结构化自然语言描述，例如"用户输入请求→协调者Agent→分发给3个子Agent(数据检索/代码执行/内容生成)→结果聚合→输出"
 - diagramStyle（可选）：blueprint | minimal | corporate | neon | hand-drawn | gradient | monochrome
-- 适用场景：系统架构图、业务流程图、组织架构图、技术栈关系图、网络拓扑图、决策树、思维导图
-- 每个演示文稿建议1-3页diagram，用于展示复杂关系和流程
+- bullets 中放补充说明（不超过3条），不要把架构描述放在 bullets 里
+- 每个演示文稿至少1-2页 diagram，展示核心架构或关键流程
+
+❌ 错误做法：把架构描述写成一大段文字放在 full-text 的 bullets 里
+✅ 正确做法：用 diagram layout + diagramDescription 描述结构，bullets 放简短补充
 
 ## 商务设计规范
 - 字体：统一微软雅黑，仅用加粗/标准/细三种字重
@@ -113,7 +124,11 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - 严格${pageCount}页，最后一页必须是summary/action
 - 连续两页不能相同layout，至少5种不同layout
 - 所有数据来自研究报告，不得编造
-- 每页内容必须饱满：bullets≥4条 或 keyMetrics≥3个 或 tableData≥4行`;
+- 每页内容必须饱满：bullets≥4条 或 keyMetrics≥3个 或 tableData≥4行
+- ❌ 禁止：把架构/流程/关系描述写成一大段文字放在 full-text 里。必须用 diagram layout
+- ❌ 禁止：所有 bullet 都是长段落。每条 bullet 应该是"关键词：简短说明"格式，80-150字
+- ✅ 要求：每条 bullet 用"标签：内容"格式，如"市场规模：2024年全球AI市场达$1840亿，同比增长35%"
+- ✅ 要求：至少1-2页使用 diagram layout 展示核心架构或关键流程`;
 }
 
 function buildUserPrompt(
@@ -162,6 +177,14 @@ ${researchSection}
 4. null字段可省略，空数组用[]`;
 }
 
+// ─── Detect if content describes an architecture/flow/diagram ───
+function looksLikeDiagram(s: SlideContent): boolean {
+  const text = [s.title, s.subtitle, ...(s.bullets || [])].join(' ');
+  const diagramPatterns = /架构|architecture|流程|pipeline|拓扑|topology|→|->|分发|聚合|调度|orchestrat|agent.*sub-?agent|微服务|microservice|层.*层|layer|网关|gateway|数据流|dataflow|状态机|state machine|决策树|decision tree|节点.*连接|工作流|workflow/i;
+  const arrowCount = (text.match(/→|->|➜|⟶|──>/g) || []).length;
+  return diagramPatterns.test(text) || arrowCount >= 2;
+}
+
 // ─── Layout auto-correction: match layout to actual content ───
 function correctLayout(s: SlideContent): void {
   if (['cover', 'toc'].includes(s.type)) return;
@@ -169,6 +192,20 @@ function correctLayout(s: SlideContent): void {
   const hasMetrics = (s.keyMetrics?.length || 0) > 0;
   const hasChart = (s.chartData?.length || 0) > 0;
   const hasTable = !!s.tableData?.headers?.length;
+
+  // Auto-upgrade to diagram if content describes architecture/flow
+  if (s.layout === 'full-text' && !hasChart && !hasTable && looksLikeDiagram(s)) {
+    s.layout = 'diagram';
+    if (!s.diagramDescription) {
+      // Extract structured description from bullets
+      const allText = (s.bullets || []).join('；');
+      s.diagramDescription = `${s.title}：${allText}`;
+    }
+    // Keep max 3 short bullets as supplementary text
+    if (s.bullets && s.bullets.length > 3) {
+      s.bullets = s.bullets.slice(0, 3).map(b => b.length > 60 ? b.slice(0, 57) + '...' : b);
+    }
+  }
 
   // Estimate content height (in inches, slide usable ~5.4")
   const metricH = hasMetrics ? 1.6 : 0;
@@ -186,12 +223,9 @@ function correctLayout(s: SlideContent): void {
 
   // Fix: too much content for compact layouts
   if (totalH > 5.4) {
-    // Content will overflow — switch to a layout that handles density better
     if (hasChart && hasMetrics && bulletCount > 3) {
-      // Too much of everything — drop to chart-focus (truncates bullets to 3)
       s.layout = 'chart-focus';
     } else if (bulletCount > 6 && !hasChart && !hasTable) {
-      // Many bullets, no visuals — use two-column to save vertical space
       s.layout = 'two-column';
     } else if (bulletCount > 8) {
       s.layout = 'three-column';

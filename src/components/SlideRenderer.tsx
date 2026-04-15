@@ -289,16 +289,40 @@ function InsightBox({ insight, theme, style }: { insight: string; theme: ThemeCo
 function BulletList({ bullets, theme, design, editable, onBulletChange }: { bullets: string[]; theme: ThemeConfig; design: ThemeDesign; editable?: boolean; onBulletChange?: (idx: number, val: string) => void }) {
   const chars: Record<string, string> = { circle: '●', square: '■', dash: '—', arrow: '▸', number: '' };
   const char = chars[design.bulletStyle] || '●';
+
+  // Parse bullet: auto-detect "Label：content" or "Label: content" pattern for visual hierarchy
+  function renderBulletText(text: string) {
+    const colonMatch = text.match(/^(.{2,20})[：:]\s*(.+)$/);
+    if (colonMatch) {
+      return (
+        <>
+          <span className="font-bold" style={{ color: theme.primary }}>{colonMatch[1]}</span>
+          <span style={{ color: theme.secondary }}>：</span>
+          <span style={{ color: theme.text }}>{colonMatch[2]}</span>
+        </>
+      );
+    }
+    // Bold numbers/percentages inline
+    const parts = text.split(/(\d+[\d,.]*%?(?:\s*[亿万千百]+)?(?:\s*美元|元|USD)?)/g);
+    if (parts.length > 1) {
+      return parts.map((p, i) => /^\d/.test(p)
+        ? <span key={i} className="font-bold" style={{ color: theme.accent }}>{p}</span>
+        : <span key={i} style={{ color: theme.text }}>{p}</span>
+      );
+    }
+    return <span style={{ color: theme.text }}>{text}</span>;
+  }
+
   return (
     <div className="space-y-0.5 mt-1">
       {bullets.map((b, i) => (
         <div key={i} className="flex gap-1 text-[7px] leading-snug">
-          <span className="shrink-0 text-[5px] mt-0.5" style={{ color: theme.primary }}>
+          <span className="shrink-0 text-[5px] mt-0.5" style={{ color: i === 0 ? theme.accent : theme.primary }}>
             {design.bulletStyle === 'number' ? `${i + 1}.` : char}
           </span>
           {editable && onBulletChange
             ? <EditableText value={b} onChange={(v) => onBulletChange(i, v)} style={{ color: theme.text }} className="text-[7px] leading-snug" />
-            : <span style={{ color: theme.text }}>{b}</span>}
+            : <span className="text-[7px] leading-snug">{renderBulletText(b)}</span>}
         </div>
       ))}
     </div>

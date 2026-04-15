@@ -178,13 +178,21 @@ function renderBullets(slide: PptxGenJS.Slide, bullets: string[], theme: ThemeCo
   const char = bulletChars[design.bulletStyle] || '●';
   const charsPerLine = Math.floor((w - 0.35) * 5.5);
   for (let i = 0; i < bullets.length; i++) {
-    if (y >= MAX_Y) break; // boundary check
+    if (y >= MAX_Y) break;
     const b = bullets[i];
     const lines = Math.max(1, Math.ceil(b.length / charsPerLine));
-    const rowH = Math.min(Math.max(0.38, lines * 0.22), MAX_Y - y); // clamp height
+    const rowH = Math.min(Math.max(0.38, lines * 0.22), MAX_Y - y);
     const prefix = design.bulletStyle === 'number' ? `${i + 1}.` : char;
-    slide.addText(prefix, { x, y, w: 0.35, h: rowH, fontSize: design.bulletStyle === 'number' ? 11 : 8, color: c(theme.primary), bold: true, align: 'center', valign: 'top' });
-    slide.addText(b, { x: x + 0.35, y, w: w - 0.35, h: rowH, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true, valign: 'top' });
+    slide.addText(prefix, { x, y, w: 0.35, h: rowH, fontSize: design.bulletStyle === 'number' ? 11 : 8, color: i === 0 ? c(theme.accent) : c(theme.primary), bold: true, align: 'center', valign: 'top' });
+    // Parse "Label：content" pattern for visual hierarchy
+    const colonMatch = b.match(/^(.{2,20})[：:]\s*(.+)$/);
+    if (colonMatch) {
+      const labelW = Math.min(colonMatch[1].length * 0.16 + 0.1, w * 0.35);
+      slide.addText(colonMatch[1] + '：', { x: x + 0.35, y, w: labelW, h: rowH, fontSize: design.bodySize - 1, color: c(theme.primary), bold: true, fontFace: 'Microsoft YaHei', valign: 'top' });
+      slide.addText(colonMatch[2], { x: x + 0.35 + labelW, y, w: w - 0.35 - labelW, h: rowH, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true, valign: 'top' });
+    } else {
+      slide.addText(b, { x: x + 0.35, y, w: w - 0.35, h: rowH, fontSize: design.bodySize - 1, color: c(theme.text), fontFace: 'Microsoft YaHei', shrinkText: true, valign: 'top' });
+    }
     y += rowH + 0.06;
   }
   return y;
