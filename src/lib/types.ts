@@ -49,7 +49,9 @@ export interface SlideContent {
   source?: string;
   sourceType?: 'official' | 'research' | 'inferred'; // C2: data provenance
   notes?: string;
-  needsImage?: boolean; // deprecated, always false
+  needsImage?: boolean;
+  imageUrl?: string; // base64 data URL or remote URL
+  imagePrompt?: string; // prompt used to generate the image
   tableData?: { headers: string[]; rows: string[][] };
   designNotes?: string;
 }

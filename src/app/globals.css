@@ -16,6 +16,14 @@
   --success: #059669;
   --warn: #D97706;
   --err: #DC2626;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-xl: 0 12px 40px rgba(0,0,0,0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 }
 
 * { scrollbar-width: thin; scrollbar-color: var(--border-0) transparent; }
@@ -29,52 +37,115 @@ body {
 
 ::selection { background: var(--accent-light); color: var(--accent); }
 
-/* Slide card in vertical scroll */
+/* ── Buttons ── */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.2);
+}
+.btn-primary:hover:not(:disabled) {
+  background: #6D28D9;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  transform: translateY(-1px);
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow-sm); }
+
+.btn-secondary {
+  background: var(--bg-0);
+  color: var(--text-0);
+  border: 1px solid var(--border-0);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-1);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--bg-2); color: var(--text-0); }
+
+/* ── Cards ── */
+.card {
+  background: var(--bg-0);
+  border: 1px solid var(--border-0);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+.card:hover { box-shadow: var(--shadow-md); border-color: var(--border-1); }
+.card-active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+
+/* ── Inputs ── */
+.input {
+  background: var(--bg-0);
+  border: 1.5px solid var(--border-0);
+  border-radius: var(--radius-md);
+  color: var(--text-0);
+  transition: all 0.15s ease;
+  outline: none;
+}
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.input::placeholder { color: var(--text-2); }
+
+/* ── Slide cards ── */
 .slide-card {
   aspect-ratio: 16/9;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
-  transition: box-shadow 0.2s;
+  box-shadow: var(--shadow-md);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
-.slide-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.06); }
+.slide-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.slide-card-active { box-shadow: 0 0 0 2px var(--accent), var(--shadow-lg); }
 
-/* Slide mini thumbnails */
-.slide-mini {
+/* ── Thumbnails ── */
+.thumb {
   aspect-ratio: 16/9;
-  border: 1px solid var(--border-0);
-  border-radius: 6px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  font-size: 6px;
-  position: relative;
+  transition: all 0.2s ease;
   cursor: pointer;
-  transition: border-color 0.15s;
+  opacity: 0.5;
 }
-.slide-mini:hover { border-color: var(--accent); }
-.slide-mini .slide-label {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: rgba(255,255,255,0.9);
-  color: var(--text-1);
-  padding: 2px 4px;
-  font-size: 7px;
-  text-align: center;
+.thumb:hover { opacity: 0.8; border-color: var(--border-1); }
+.thumb-active { opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); transform: scale(1.05); }
+
+/* ── Skeleton loading ── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-1) 50%, var(--bg-2) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
+/* ── Animations ── */
+@keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+.animate-slide-in { animation: slide-in-right 0.25s ease-out; }
+.animate-scale-in { animation: scale-in 0.2s ease-out; }
+
+@keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .animate-pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
 
-@keyframes progress-shine {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.progress-bar-animated {
-  background-size: 200% 100%;
-  animation: progress-shine 1.5s ease-in-out infinite;
-}
+@keyframes progress-shine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.progress-bar-animated { background-size: 200% 100%; animation: progress-shine 1.5s ease-in-out infinite; }
 
 @keyframes step-pulse {
   0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
@@ -82,6 +153,19 @@ body {
 }
 .step-active { animation: step-pulse 1.5s ease-in-out infinite; }
 
-/* Smooth scroll for slide gallery */
+/* ── Tooltip ── */
+.tooltip { position: relative; }
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--text-0); color: #fff; font-size: 11px; padding: 4px 8px;
+  border-radius: var(--radius-sm); white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+}
+.tooltip:hover::after { opacity: 1; }
+
+/* ── Smooth scroll ── */
 .slide-gallery { scroll-behavior: smooth; }
-.slide-gallery > div { scroll-snap-align: start; }
+
+/* ── Backdrop blur for modals ── */
+.backdrop-blur { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }

@@ -656,6 +656,16 @@ export async function generatePptx(slides: SlideContent[], themeKey: StyleTheme,
     if (content.source && content.type !== 'cover') {
       slide.addText(`📎 ${content.source}`, { x: PAD, y: 6.7, w: CW - 1.5, h: 0.3, fontSize: 7, color: c(theme.secondary), italic: true, fontFace: 'Microsoft YaHei' });
     }
+    // Embed image if available
+    if (content.imageUrl && content.imageUrl.startsWith('data:')) {
+      if (content.type === 'cover') {
+        // Cover: full background image with low opacity overlay
+        slide.addImage({ data: content.imageUrl, x: 0, y: 0, w: '100%', h: '100%', transparency: 80 });
+      } else if (!content.chartData?.length && !content.tableData?.headers?.length) {
+        // Content slides without charts/tables: small image in bottom-right
+        slide.addImage({ data: content.imageUrl, x: CW - 2.5, y: 5.0, w: 2.5, h: 1.5, rounding: true });
+      }
+    }
     switch (content.type) {
       case 'cover': renderCover(slide, content, theme, design); break;
       case 'toc': renderToc(slide, content, theme, design, total); break;

@@ -5,6 +5,7 @@ import type { ResearchReport } from '@/lib/research-engine';
 import { generateSlidesStreaming } from '@/lib/ai-generator';
 import { checkQuality } from '@/lib/quality-checker';
 import { optimizeSlides } from '@/lib/self-optimizer';
+import { generateImages } from '@/lib/image-generator';
 import { cachePreview } from '../generate/route';
 import { getCachedResearch } from '../outline/route';
 
@@ -93,6 +94,17 @@ export async function POST(req: NextRequest) {
         }
 
         const previewId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        // Phase 4: Image generation
+        send('status', { phase: 'images', message: '生成配图中...' });
+        send('log', { text: '🎨 开始生成配图...' });
+        await generateImages(slides, (i, total) => {
+          send('log', { text: `🖼️ 配图 ${i + 1}/${total}...` });
+        });
+        const imgCount = slides.filter(s => s.imageUrl).length;
+        if (imgCount > 0) send('log', { text: `✓ 生成 ${imgCount} 张配图` });
+        else send('log', { text: '⚠️ 配图跳过（未配置 GOOGLE_API_KEY 或 API 不可用）' });
+
         cachePreview(previewId, slides);
         send('log', { text: `🎉 生成完成! ${slides.length} 页, 质量评分 ${score}分` });
         send('done', { previewId, slides, issues, score });

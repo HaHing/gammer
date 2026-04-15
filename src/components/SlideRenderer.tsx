@@ -33,6 +33,9 @@ function CoverSlide({ slide, theme, design, editable, onUpdate }: { slide: Slide
 
   return (
     <div className="aspect-[16/9] rounded-lg overflow-hidden relative" style={bg}>
+      {slide.imageUrl && (
+        <img src={slide.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+      )}
       {design.coverStyle === 'haio-dark' && (
         <>
           <div className="absolute left-0 top-0 w-1 h-full" style={{ background: theme.primary }} />
@@ -144,6 +147,13 @@ function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate
 
       {/* Source */}
       {slide.source && <p className="text-[5px] mt-1 italic" style={{ color: theme.secondary }}>📎 {slide.source}</p>}
+
+      {/* Image */}
+      {slide.imageUrl && (
+        <div className="mt-1 flex justify-center">
+          <img src={slide.imageUrl} alt="" className="max-h-[40px] rounded object-cover opacity-90" />
+        </div>
+      )}
     </SlideFrame>
   );
 }
