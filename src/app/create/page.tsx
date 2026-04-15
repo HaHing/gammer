@@ -10,8 +10,8 @@ import SlideRenderer from '@/components/SlideRenderer';
 
 const PAGE_OPTIONS: PageCount[] = [5, 10, 15, 20, 25];
 
-// SVG icon components — purple (#7C3AED) stroke
-const P = '#7C3AED';
+// SVG icon components — purple (#0D99FF) stroke
+const P = '#0D99FF';
 const Icon = {
   search: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
   download: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
@@ -281,7 +281,7 @@ function HomeInner() {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors" title={sidebarOpen ? '收起面板' : '展开面板'}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
-            <div className="w-7 h-7 rounded-md flex items-center justify-center text-white font-extrabold text-xs" style={{ background: '#7C3AED' }}>G</div>
+            <div className="w-7 h-7 rounded-md flex items-center justify-center text-white font-extrabold text-xs" style={{ background: 'linear-gradient(135deg, #F24E1E, #A259FF)' }}>G</div>
             <span className="text-[15px] font-semibold tracking-[-0.02em]">Gammer</span>
             <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-light)' }}>v0.0.01</span>
           </div>
@@ -497,7 +497,7 @@ function HomeInner() {
           ) : !hasContent ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-6" style={{ background: '#7C3AED' }}>G</div>
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-6" style={{ background: 'linear-gradient(135deg, #F24E1E, #A259FF)' }}>G</div>
                 <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-0)' }}>开始创建演示文稿</h2>
                 <p className="text-[13px] mb-6" style={{ color: 'var(--text-2)' }}>在左侧输入主题，点击「生成大纲」开始</p>
                 <div className="grid grid-cols-3 gap-3">

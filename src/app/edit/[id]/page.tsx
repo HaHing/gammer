@@ -55,7 +55,7 @@ export default function EditPage() {
   };
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-0, #0a0a0a)', color: 'var(--text-0, #e5e5e5)' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-0, #ffffff)', color: 'var(--text-0, #1e1e1e)' }}>
       <div className="text-center">
         <p className="text-lg mb-4">{error}</p>
         <button onClick={() => router.push('/dashboard')} className="px-4 py-2 rounded-lg text-sm" style={{ background: 'var(--bg-2, #222)' }}>返回</button>
@@ -64,7 +64,7 @@ export default function EditPage() {
   );
 
   if (!project) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-0, #0a0a0a)', color: 'var(--text-2, #888)' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-0, #ffffff)', color: 'var(--text-2, #666)' }}>
       加载中...
     </div>
   );
@@ -73,16 +73,16 @@ export default function EditPage() {
   const themeConfig: ThemeConfig = themes[themeKey] || themes.brand;
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-0, #0a0a0a)', color: 'var(--text-0, #e5e5e5)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg-0, #ffffff)', color: 'var(--text-0, #1e1e1e)' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: 'var(--border-0, #222)' }}>
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/dashboard')} className="text-sm hover:opacity-80" style={{ color: 'var(--text-2, #888)' }}>← 返回</button>
+          <button onClick={() => router.push('/dashboard')} className="text-sm hover:opacity-80" style={{ color: 'var(--text-2, #666)' }}>← 返回</button>
           <span className="text-sm font-medium">{project.title}</span>
-          {saving && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-2, #222)', color: 'var(--text-2, #888)' }}>保存中...</span>}
+          {saving && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-2, #222)', color: 'var(--text-2, #666)' }}>保存中...</span>}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: 'var(--text-2, #888)' }}>{slides.length} 页</span>
+          <span className="text-[10px]" style={{ color: 'var(--text-2, #666)' }}>{slides.length} 页</span>
         </div>
       </header>
 
@@ -92,7 +92,7 @@ export default function EditPage() {
           {slides.map((s, i) => (
             <div key={i} onClick={() => setActive(i)}
               className={`cursor-pointer rounded-lg overflow-hidden transition-all ${active === i ? 'ring-2 ring-purple-500' : 'hover:ring-1 hover:ring-gray-600'}`}>
-              <div className="text-[8px] px-1.5 py-0.5 flex justify-between" style={{ background: 'var(--bg-2, #1a1a1a)', color: 'var(--text-2, #888)' }}>
+              <div className="text-[8px] px-1.5 py-0.5 flex justify-between" style={{ background: 'var(--bg-2, #1a1a1a)', color: 'var(--text-2, #666)' }}>
                 <span>{i + 1}</span>
                 <span className="truncate ml-1">{s.title?.slice(0, 12)}</span>
               </div>
