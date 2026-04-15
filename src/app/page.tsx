@@ -56,7 +56,7 @@ export default function LandingPage() {
 
       {/* Templates */}
       <section id="templates" className="py-20 px-10 max-w-5xl mx-auto">
-        <h2 className="text-3xl font-bold mb-8 text-center tracking-[-0.02em]">{templates.length} 种专业场景模板</h2>
+        <h2 className="text-3xl font-bold mb-8 text-center tracking-[-0.02em]">多种专业场景模板</h2>
         <div className="grid grid-cols-4 gap-4">
           {templates.map(t => (
             <Link key={t.id} href={`/create?scene=${t.id}`} className="p-5 rounded-xl border border-[#e5e5e5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:border-[#d5d5d5] transition-all">
