@@ -1,13 +1,11 @@
 import { NextRequest } from 'next/server';
 import type { PageCount, StyleTheme, SlideContent, OutlineItem } from '@/lib/types';
-import { themes } from '@/lib/themes';
 import { conductResearch } from '@/lib/research-engine';
 import type { ResearchReport } from '@/lib/research-engine';
 import { generateSlidesStreaming } from '@/lib/ai-generator';
 import { checkQuality } from '@/lib/quality-checker';
 import { optimizeSlides } from '@/lib/self-optimizer';
 import { generateImages } from '@/lib/image-generator';
-import { generateDiagrams } from '@/lib/diagram-generator';
 import { cachePreview } from '../generate/route';
 import { getCachedResearch } from '../outline/route';
 
@@ -106,19 +104,6 @@ export async function POST(req: NextRequest) {
         const imgCount = slides.filter(s => s.imageUrl).length;
         if (imgCount > 0) send('log', { text: `✓ 生成 ${imgCount} 张配图` });
         else send('log', { text: '⚠️ 配图跳过（未配置 GOOGLE_API_KEY 或 API 不可用）' });
-
-        // Phase 5: Diagram generation
-        const diagramSlides = slides.filter(s => s.layout === 'diagram' && s.diagramDescription);
-        if (diagramSlides.length > 0) {
-          send('status', { phase: 'diagrams', message: '生成流程图/架构图...' });
-          send('log', { text: `📐 开始生成 ${diagramSlides.length} 张图表...` });
-          const themeConfig = themes[theme] || themes.brand;
-          await generateDiagrams(slides, themeConfig, (i, total) => {
-            send('log', { text: `📐 图表 ${i}/${total}...` });
-          });
-          const diagramCount = slides.filter(s => s.diagramSvg).length;
-          send('log', { text: diagramCount > 0 ? `✓ 生成 ${diagramCount} 张图表` : '⚠️ 图表生成跳过' });
-        }
 
         cachePreview(previewId, slides);
         send('log', { text: `🎉 生成完成! ${slides.length} 页, 质量评分 ${score}分` });

@@ -89,8 +89,7 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - 任何包含"→"箭头、层级关系、节点连接的内容
 
 当 layout 为 "diagram" 时，必须提供 diagramDescription 字段：
-- diagramDescription：用结构化自然语言描述，例如"用户输入请求→协调者Agent→分发给3个子Agent(数据检索/代码执行/内容生成)→结果聚合→输出"
-- diagramStyle（可选）：blueprint | minimal | corporate | neon | hand-drawn | gradient | monochrome
+- diagramDescription：用结构化自然语言描述，用→分隔节点，例如"用户输入请求→协调者Agent→分发给3个子Agent(数据检索/代码执行/内容生成)→结果聚合→输出"
 - bullets 中放补充说明（不超过3条），不要把架构描述放在 bullets 里
 - 每个演示文稿至少1-2页 diagram，展示核心架构或关键流程
 
@@ -116,8 +115,7 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - insight：核心洞察一句话，必须含数据
 - source：数据来源机构名
 - notes：演讲者备注150-250字，含讲解要点和补充数据
-- diagramDescription：当layout为diagram时必填，自然语言描述图表内容
-- diagramStyle：可选，diagram风格（blueprint/minimal/corporate/neon/hand-drawn/gradient/monochrome）
+- diagramDescription：当layout为diagram时必填，用→分隔节点描述流程/架构
 - needsImage：始终false
 
 ## 约束

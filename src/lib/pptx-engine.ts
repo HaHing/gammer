@@ -644,10 +644,7 @@ function renderTimeline(slide: PptxGenJS.Slide, content: SlideContent, theme: Th
 }
 
 function renderDiagramLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig) {
-  if (content.diagramSvg) {
-    const svgBase64 = Buffer.from(content.diagramSvg).toString('base64');
-    slide.addImage({ data: `data:image/svg+xml;base64,${svgBase64}`, x: PAD, y: 1.1, w: CW, h: 5.5 });
-  } else if (content.diagramDescription) {
+  if (content.diagramDescription) {
     // Parse "A → B → C" into structured flowchart boxes
     const nodes = content.diagramDescription.split(/[→➜⟶;；]/).map(s => s.replace(/^[：:]\s*/, '').trim()).filter(Boolean);
     if (nodes.length > 1) {
