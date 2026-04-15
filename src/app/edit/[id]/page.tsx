@@ -23,6 +23,7 @@ export default function EditPage() {
   const [active, setActive] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState<'slide' | 'card'>('slide');
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -82,6 +83,11 @@ export default function EditPage() {
           {saving && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-2, #222)', color: 'var(--text-2, #666)' }}>保存中...</span>}
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-0, #ddd)' }}>
+            <button onClick={() => setViewMode('slide')} className="text-[11px] px-2.5 py-1" style={{ background: viewMode === 'slide' ? 'var(--bg-2, #eee)' : 'transparent', color: 'var(--text-1, #333)' }}>Slide</button>
+            <button onClick={() => setViewMode('card')} className="text-[11px] px-2.5 py-1" style={{ background: viewMode === 'card' ? 'var(--bg-2, #eee)' : 'transparent', color: 'var(--text-1, #333)' }}>Card</button>
+          </div>
+          <button onClick={() => router.push(`/present/${id}`)} className="text-sm px-3 py-1.5 rounded-lg hover:opacity-80" style={{ background: 'var(--bg-2, #eee)', color: 'var(--text-0, #1e1e1e)' }}>▶ 演示</button>
           <span className="text-[10px]" style={{ color: 'var(--text-2, #666)' }}>{slides.length} 页</span>
         </div>
       </header>
@@ -106,16 +112,83 @@ export default function EditPage() {
         {/* Main Canvas */}
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-[900px] mx-auto space-y-6">
-            {slides.map((s, i) => (
+            {viewMode === 'slide' ? slides.map((s, i) => (
               <div key={i} id={`slide-${i}`} className={`transition-all ${active === i ? 'ring-2 ring-purple-500 rounded-xl' : ''}`}
                 onClick={() => setActive(i)}>
                 <SlideRenderer slide={s} theme={themeConfig} themeKey={themeKey} pageNum={i + 1} total={slides.length}
                   editable onUpdate={(updated) => updateSlide(i, updated)} />
               </div>
+            )) : slides.map((s, i) => (
+              <CardEditor key={i} slide={s} index={i} active={active === i} onSelect={() => setActive(i)} onUpdate={(updated) => updateSlide(i, updated)} />
             ))}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CardEditor({ slide, index, active, onSelect, onUpdate }: {
+  slide: SlideContent; index: number; active: boolean; onSelect: () => void; onUpdate: (s: SlideContent) => void;
+}) {
+  const LAYOUTS: SlideContent['layout'][] = ['full-text', 'two-column', 'three-column', 'big-number', 'chart-focus', 'table-focus', 'icon-grid', 'process-flow', 'quote-highlight', 'metrics-grid', 'funnel', 'pyramid', 'problem-solution', 'highlight'];
+  return (
+    <div onClick={onSelect} className={`rounded-xl p-4 space-y-3 transition-all ${active ? 'ring-2 ring-purple-500' : ''}`}
+      style={{ background: 'var(--bg-0, #fff)', border: '1px solid var(--border-0, #e5e7eb)' }}>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-bold w-6 h-6 rounded flex items-center justify-center text-white bg-purple-500">{index + 1}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'var(--bg-2, #f3f4f6)', color: 'var(--text-2, #666)' }}>{slide.type}</span>
+        <select value={slide.layout || 'full-text'} onChange={e => onUpdate({ ...slide, layout: e.target.value as SlideContent['layout'] })}
+          className="text-[10px] px-2 py-0.5 rounded outline-none" style={{ background: 'var(--bg-2, #f3f4f6)', color: 'var(--text-2, #666)' }}>
+          {LAYOUTS.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+      </div>
+      <input value={slide.title} onChange={e => onUpdate({ ...slide, title: e.target.value })}
+        className="w-full text-[14px] font-semibold px-3 py-1.5 rounded-lg outline-none"
+        style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }} placeholder="标题" />
+      {slide.subtitle !== undefined && (
+        <input value={slide.subtitle || ''} onChange={e => onUpdate({ ...slide, subtitle: e.target.value })}
+          className="w-full text-[12px] px-3 py-1 rounded-lg outline-none"
+          style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)', color: 'var(--text-1, #333)' }} placeholder="副标题" />
+      )}
+      {slide.bullets && (
+        <div className="space-y-1">
+          <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>要点</span>
+          {slide.bullets.map((b, j) => (
+            <div key={j} className="flex gap-1">
+              <span className="text-[10px] mt-1.5 text-purple-500">•</span>
+              <input value={b} onChange={e => { const bs = [...slide.bullets!]; bs[j] = e.target.value; onUpdate({ ...slide, bullets: bs }); }}
+                className="flex-1 text-[12px] px-2 py-1 rounded outline-none"
+                style={{ background: 'var(--bg-1, #f9fafb)', color: 'var(--text-0, #1e1e1e)' }} />
+              <button onClick={() => onUpdate({ ...slide, bullets: slide.bullets!.filter((_, k) => k !== j) })}
+                className="text-[10px] px-1" style={{ color: 'var(--text-2, #999)' }}>×</button>
+            </div>
+          ))}
+          <button onClick={() => onUpdate({ ...slide, bullets: [...(slide.bullets || []), ''] })}
+            className="text-[10px] text-purple-500">+ 添加要点</button>
+        </div>
+      )}
+      {slide.keyMetrics && slide.keyMetrics.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>关键指标</span>
+          {slide.keyMetrics.map((m, j) => (
+            <div key={j} className="flex gap-1.5">
+              <input value={m.label} onChange={e => { const ms = [...slide.keyMetrics!]; ms[j] = { ...ms[j], label: e.target.value }; onUpdate({ ...slide, keyMetrics: ms }); }}
+                className="flex-1 text-[11px] px-2 py-1 rounded outline-none" style={{ background: 'var(--bg-1, #f9fafb)' }} placeholder="标签" />
+              <input value={m.value} onChange={e => { const ms = [...slide.keyMetrics!]; ms[j] = { ...ms[j], value: e.target.value }; onUpdate({ ...slide, keyMetrics: ms }); }}
+                className="w-24 text-[11px] px-2 py-1 rounded outline-none font-bold" style={{ background: 'var(--bg-1, #f9fafb)' }} placeholder="值" />
+            </div>
+          ))}
+        </div>
+      )}
+      {slide.insight !== undefined && (
+        <div>
+          <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>洞察</span>
+          <input value={slide.insight || ''} onChange={e => onUpdate({ ...slide, insight: e.target.value })}
+            className="w-full text-[12px] px-3 py-1 rounded-lg outline-none mt-0.5"
+            style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }} placeholder="💡 洞察" />
+        </div>
+      )}
     </div>
   );
 }

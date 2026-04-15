@@ -198,6 +198,18 @@ function renderChart(slide: PptxGenJS.Slide, chartData: SlideContent['chartData'
     return;
   }
 
+  if (chartType === 'line') {
+    const chartDataFormatted = [{ name: 'Data', labels: chartData.map(d => d.label), values: chartData.map(d => d.value) }];
+    slide.addChart('line', chartDataFormatted, {
+      x, y, w, h, showLegend: false, showTitle: false,
+      lineDataSymbol: 'circle', lineDataSymbolSize: 6,
+      chartColors: [c(theme.primary)],
+      valAxisLabelFontSize: 8, catAxisLabelFontSize: 8,
+      dataLabelFontSize: 8, showValue: true,
+    } as PptxGenJS.IChartOpts);
+    return;
+  }
+
   const maxVal = Math.max(...chartData.map(d => d.value));
   const barW = (w - 0.5) / chartData.length;
   const chartBottom = y + h - 0.4;
@@ -640,6 +652,10 @@ export async function generatePptx(slides: SlideContent[], themeKey: StyleTheme,
     let notes = content.notes || '';
     if (content.source) notes += `\n\n数据来源: ${content.source}`;
     if (notes.trim()) slide.addNotes(notes.trim());
+    // Render source on slide footer area
+    if (content.source && content.type !== 'cover') {
+      slide.addText(`📎 ${content.source}`, { x: PAD, y: 6.7, w: CW - 1.5, h: 0.3, fontSize: 7, color: c(theme.secondary), italic: true, fontFace: 'Microsoft YaHei' });
+    }
     switch (content.type) {
       case 'cover': renderCover(slide, content, theme, design); break;
       case 'toc': renderToc(slide, content, theme, design, total); break;

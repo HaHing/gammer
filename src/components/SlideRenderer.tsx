@@ -348,6 +348,7 @@ function QuoteBlock({ text, source, theme }: { text: string; source?: string; th
 
 function ChartView({ data, theme, chartType }: { data: NonNullable<SlideContent['chartData']>; theme: ThemeConfig; chartType?: string }) {
   if (chartType === 'pie' || chartType === 'doughnut') return <PieChart data={data} theme={theme} isDoughnut={chartType === 'doughnut'} />;
+  if (chartType === 'line') return <LineChart data={data} theme={theme} />;
   return <BarChart data={data} theme={theme} />;
 }
 
@@ -406,6 +407,34 @@ function BarChart({ data, theme }: { data: NonNullable<SlideContent['chartData']
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function LineChart({ data, theme }: { data: NonNullable<SlideContent['chartData']>; theme: ThemeConfig }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  const w = 200, h = 60, px = 20, py = 5;
+  const cw = w - px * 2, ch = h - py * 2;
+  const points = data.map((d, i) => ({
+    x: px + (i / Math.max(data.length - 1, 1)) * cw,
+    y: py + ch - (d.value / max) * ch,
+  }));
+  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  return (
+    <div className="mt-1">
+      <svg viewBox={`0 0 ${w} ${h + 10}`} className="w-full h-16">
+        {[0, 0.5, 1].map(r => (
+          <line key={r} x1={px} x2={w - px} y1={py + ch * (1 - r)} y2={py + ch * (1 - r)} stroke="#E5E7EB" strokeWidth="0.5" />
+        ))}
+        <path d={line} fill="none" stroke={theme.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="2" fill={theme.primary} />
+            <text x={p.x} y={p.y - 4} textAnchor="middle" fontSize="4" fill={theme.primary} fontWeight="bold">{data[i].value}</text>
+            <text x={p.x} y={h + 8} textAnchor="middle" fontSize="3.5" fill={theme.secondary}>{data[i].label}</text>
+          </g>
+        ))}
+      </svg>
     </div>
   );
 }

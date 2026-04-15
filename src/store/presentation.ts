@@ -51,6 +51,9 @@ interface PresentationState {
   urlLoading: boolean;
   sidebarOpen: boolean;
 
+  // Auto-save
+  projectId: string | null;
+
   // Actions
   setTopic: (v: string) => void;
   setDescription: (v: string) => void;
@@ -75,6 +78,7 @@ interface PresentationState {
   setOutlineLoading: (v: boolean) => void;
   setUrlLoading: (v: boolean) => void;
   setSidebarOpen: (v: boolean) => void;
+  setProjectId: (v: string | null) => void;
   updateSlide: (i: number, slide: SlideContent) => void;
   replaceSlides: (slides: SlideContent[]) => void;
   reset: () => void;
@@ -104,6 +108,7 @@ const initialState = {
   outlineLoading: false,
   urlLoading: false,
   sidebarOpen: true,
+  projectId: null,
 };
 
 export const usePresentationStore = create<PresentationState>()(
@@ -133,6 +138,7 @@ export const usePresentationStore = create<PresentationState>()(
       setOutlineLoading: (v) => set({ outlineLoading: v }),
       setUrlLoading: (v) => set({ urlLoading: v }),
       setSidebarOpen: (v) => set({ sidebarOpen: v }),
+      setProjectId: (v) => set({ projectId: v }),
       updateSlide: (i, slide) => set((s) => {
         if (!s.previewData) return {};
         const slides = [...s.previewData.slides];

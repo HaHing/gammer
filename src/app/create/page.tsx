@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import type { PageCount, StyleTheme, SlideContent, ThemeConfig, OutlineItem } from '@/lib/types';
 import { layoutPresets } from '@/lib/layouts';
 import { templates } from '@/data/templates';
 import { themes } from '@/lib/themes';
 import SlideRenderer from '@/components/SlideRenderer';
+import { usePresentationStore, type PreviewResponse } from '@/store/presentation';
 
 const PAGE_OPTIONS: PageCount[] = [5, 10, 15, 20, 25];
 
@@ -99,16 +100,6 @@ const TYPE_LABEL: Record<string, string> = {
   summary: '总结', action: '行动', appendix: '附录',
 };
 
-interface PreviewResponse {
-  previewId: string;
-  slides: SlideContent[];
-  issues: { page: number; issue: string; severity: string }[];
-  score: number;
-  research?: { summary: string; keyStats: { metric: string; value: string; source: string }[]; findingsCount?: number; sourcesCount?: number };
-}
-
-import { Suspense } from 'react';
-
 export default function CreatePage() {
   return <Suspense><HomeInner /></Suspense>;
 }
@@ -119,60 +110,52 @@ function HomeInner() {
   const initTopic = searchParams.get('topic') || '';
   const initScene = searchParams.get('scene') || '';
   const matchedTemplate = templates.find(t => t.id === initScene);
-  const [topic, setTopic] = useState(initTopic);
-  const [description, setDescription] = useState('');
-  const [pageCount, setPageCount] = useState<PageCount>(matchedTemplate?.defaultPageCount || 10);
-  const [theme, setTheme] = useState<StyleTheme>(matchedTemplate?.defaultTheme || 'brand');
-  const [scenes, setScenes] = useState(matchedTemplate?.name || '');
-  const [loading, setLoading] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [paletteIdx, setPaletteIdx] = useState(0);
-  const [previewStatus, setPreviewStatus] = useState('');
-  const [progressPhase, setProgressPhase] = useState('');
-  const [slidesDone, setSlidesDone] = useState(0);
-  const [taskLogs, setTaskLogs] = useState<string[]>([]);
-  // Outline state
-  const [outline, setOutline] = useState<OutlineItem[] | null>(null);
-  const [researchId, setResearchId] = useState('');
-  const [outlineLoading, setOutlineLoading] = useState(false);
-  const [outlineResearch, setOutlineResearch] = useState<PreviewResponse['research']>(undefined);
-  // D3: Language
-  const [lang, setLang] = useState<'zh' | 'en'>('zh');
-  // History for undo
-  const [history, setHistory] = useState<PreviewResponse[]>([]);
-  const [historyIdx, setHistoryIdx] = useState(-1);
-  // URL input
-  const [urlInput, setUrlInput] = useState('');
-  const [urlLoading, setUrlLoading] = useState(false);
+
+  const store = usePresentationStore();
+  const { topic, description, pageCount, theme, paletteIdx, scenes, lang, urlInput,
+    outline, researchId, outlineResearch, previewData, activeSlide,
+    previewStatus, slidesDone, taskLogs, loading, previewing, outlineLoading, urlLoading, sidebarOpen, projectId } = store;
+  const { setTopic, setDescription, setPageCount, setTheme, setPaletteIdx, setScenes, setLang, setUrlInput,
+    setOutline, setResearchId, setOutlineResearch, setPreviewData, setActiveSlide,
+    setPhase, setPreviewStatus, setSlidesDone, addTaskLog, clearTaskLogs,
+    setLoading, setPreviewing, setOutlineLoading, setUrlLoading, setSidebarOpen, setProjectId } = store;
+
+  // Zundo temporal for undo/redo
+  const temporalStore = usePresentationStore.temporal;
+  const canUndo = temporalStore.getState().pastStates.length > 0;
+  const canRedo = temporalStore.getState().futureStates.length > 0;
+  const undo = () => temporalStore.getState().undo();
+  const redo = () => temporalStore.getState().redo();
+
+  // Init from URL params (once)
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    if (initTopic && !topic) setTopic(initTopic);
+    if (matchedTemplate) {
+      if (!scenes) setScenes(matchedTemplate.name);
+      if (pageCount === 10 && matchedTemplate.defaultPageCount) setPageCount(matchedTemplate.defaultPageCount);
+      if (theme === 'brand' && matchedTemplate.defaultTheme) setTheme(matchedTemplate.defaultTheme);
+    }
+  }, []);
+
+  // Auto-save debounce
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const autoSave = useCallback((data: Record<string, unknown>) => {
+    if (!projectId) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).catch(() => {});
+    }, 3000);
+  }, [projectId]);
 
   const palette = THEME_PALETTES[theme][paletteIdx] || THEME_PALETTES[theme][0];
   const currentTheme: ThemeConfig = { ...themes[theme], primary: palette.primary, accent: palette.accent };
-
-  // D1: Push to history on preview data change
-  const pushHistory = (data: PreviewResponse) => {
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIdx + 1);
-      newHistory.push(data);
-      setHistoryIdx(newHistory.length - 1);
-      return newHistory;
-    });
-  };
-  const undo = () => {
-    if (historyIdx > 0) {
-      const newIdx = historyIdx - 1;
-      setHistoryIdx(newIdx);
-      setPreviewData(history[newIdx]);
-    }
-  };
-  const redo = () => {
-    if (historyIdx < history.length - 1) {
-      const newIdx = historyIdx + 1;
-      setHistoryIdx(newIdx);
-      setPreviewData(history[newIdx]);
-    }
-  };
+  const progressPhase = usePresentationStore(s => s.phase);
 
   // A1: Generate outline first
   const handleOutline = async () => {
@@ -191,6 +174,18 @@ function HomeInner() {
       setOutline(data.outline);
       setResearchId(data.researchId);
       setOutlineResearch(data.research);
+      // Auto-save: create draft project on first outline
+      if (!projectId) {
+        try {
+          const saveRes = await fetch('/api/projects', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, outline: data.outline, research: data.research }),
+          });
+          if (saveRes.ok) { const { id } = await saveRes.json(); setProjectId(id); }
+        } catch {}
+      } else {
+        autoSave({ title: topic, outline: data.outline, research: data.research });
+      }
     } catch (e) { alert((e as Error).message); }
     finally { setOutlineLoading(false); }
   };
@@ -199,7 +194,7 @@ function HomeInner() {
   const handlePreview = async () => {
     if (!topic.trim()) return;
     setPreviewing(true); setPreviewData(null); setActiveSlide(0);
-    setPreviewStatus('搜索数据中...'); setProgressPhase('research'); setSlidesDone(0); setTaskLogs([]);
+    setPreviewStatus('搜索数据中...'); setPhase('research'); setSlidesDone(0); clearTaskLogs();
     try {
       const res = await fetch('/api/preview-stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -221,33 +216,41 @@ function HomeInner() {
           if (line.startsWith('event: ')) { eventType = line.slice(7); continue; }
           if (line.startsWith('data: ')) {
             const data = JSON.parse(line.slice(6));
-            if (eventType === 'status') { setPreviewStatus(data.message); setProgressPhase(data.phase); }
-            else if (eventType === 'research') { streamResearch = data; setProgressPhase('generating'); }
+            if (eventType === 'status') { setPreviewStatus(data.message); setPhase(data.phase); }
+            else if (eventType === 'research') { streamResearch = data; setPhase('generating'); }
             else if (eventType === 'slide') {
               streamSlides.push(data.slide); setSlidesDone(streamSlides.length);
-              setPreviewData(prev => ({ previewId: prev?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch }));
+              setPreviewData({ previewId: previewData?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch });
             } else if (eventType === 'done') {
-              setPreviewData({ ...data, research: streamResearch }); setProgressPhase('done'); pushHistory({ ...data, research: streamResearch });
+              setPreviewData({ ...data, research: streamResearch }); setPhase('done');
               // Auto-save to database
               try {
-                const res = await fetch('/api/projects', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, slides: data.slides, outline, research: streamResearch, score: data.score }),
-                });
-                if (res.ok) {
-                  const { id } = await res.json();
-                  if (id) setTimeout(() => router.push(`/edit/${id}`), 1500);
+                if (projectId) {
+                  await fetch(`/api/projects/${projectId}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slides: data.slides, score: data.score, research: streamResearch }),
+                  });
+                  setTimeout(() => router.push(`/edit/${projectId}`), 1500);
+                } else {
+                  const saveRes = await fetch('/api/projects', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, slides: data.slides, outline, research: streamResearch, score: data.score }),
+                  });
+                  if (saveRes.ok) {
+                    const { id } = await saveRes.json();
+                    setProjectId(id);
+                    if (id) setTimeout(() => router.push(`/edit/${id}`), 1500);
+                  }
                 }
               } catch {}
             }
             else if (eventType === 'error') { throw new Error(data.message); }
-            else if (eventType === 'log') { setTaskLogs(prev => [...prev, data.text]); }
+            else if (eventType === 'log') { addTaskLog(data.text); }
           }
         }
       }
     } catch (e) { if (!previewData) alert(`生成失败: ${(e as Error).message || '请重试'}`); }
-    finally { setPreviewing(false); setPreviewStatus(''); setProgressPhase(''); }
+    finally { setPreviewing(false); setPreviewStatus(''); setPhase('idle'); }
   };
 
   const handleGenerate = async () => {
@@ -269,24 +272,56 @@ function HomeInner() {
 
   const busy = loading || previewing || outlineLoading;
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const hasContent = !!(previewData || outline || outlineLoading || previewing);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="shrink-0 z-30 border-b bg-white" style={{ borderColor: 'var(--border-0)' }}>
-        <div className="h-12 px-4 flex items-center justify-between">
+      {/* Header — Toolbar */}
+      <header className="shrink-0 z-30 border-b bg-white" style={{ borderColor: 'var(--border-0)', boxShadow: 'var(--shadow-sm)' }}>
+        <div className="h-14 px-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors" title={sidebarOpen ? '收起面板' : '展开面板'}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-ghost w-9 h-9 flex items-center justify-center" title={sidebarOpen ? '收起面板' : '展开面板'}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round">{sidebarOpen ? <><path d="M3 6h13"/><path d="M3 12h9"/><path d="M3 18h13"/></> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}</svg>
             </button>
-            <div className="w-7 h-7 rounded-md flex items-center justify-center text-white font-extrabold text-xs" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-extrabold text-xs" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
             <span className="text-[15px] font-semibold tracking-[-0.02em]">Gammer</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-light)' }}>v0.0.01</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-light)' }}>v0.1</span>
           </div>
+          {/* Center: Step indicator */}
+          <div className="flex items-center gap-1">
+            {['主题', '大纲', '生成'].map((s, i) => {
+              const step = !outline ? 0 : !previewData ? 1 : 2;
+              const active = i === step;
+              const done = i < step;
+              return <div key={s} className="flex items-center">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all ${active ? 'animate-fade-in' : ''}`}
+                  style={{ background: active ? 'var(--accent-light)' : done ? 'var(--bg-2)' : 'transparent', color: active ? 'var(--accent)' : done ? 'var(--text-0)' : 'var(--text-2)' }}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${done ? 'text-white' : ''}`}
+                    style={{ background: done ? 'var(--success)' : active ? 'var(--accent)' : 'var(--bg-3)', color: done || active ? '#fff' : 'var(--text-2)' }}>
+                    {done ? '✓' : i + 1}
+                  </span>
+                  {s}
+                </div>
+                {i < 2 && <div className="w-6 h-[1.5px] mx-0.5" style={{ background: done ? 'var(--success)' : 'var(--bg-3)' }} />}
+              </div>;
+            })}
+          </div>
+          {/* Right: Actions */}
           <div className="flex items-center gap-2">
-            {previewData && <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-2)' }}>{activeSlide + 1} / {previewData.slides.length}</span>}
+            {previewData && <>
+              <button onClick={undo} disabled={!canUndo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20" title="撤销">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              </button>
+              <button onClick={redo} disabled={!canRedo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20" title="重做">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+              <div className="w-[1px] h-5 mx-1" style={{ background: 'var(--border-0)' }} />
+              <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{activeSlide + 1} / {previewData.slides.length}</span>
+              <div className="w-[1px] h-5 mx-1" style={{ background: 'var(--border-0)' }} />
+            </>}
+            <button onClick={handleGenerate} disabled={!previewData || busy} className="btn-primary h-9 px-4 text-[12px] flex items-center gap-1.5 disabled:opacity-30">
+              {Icon.download} 下载 PPTX
+            </button>
           </div>
         </div>
       </header>
@@ -300,10 +335,7 @@ function HomeInner() {
             <label className="text-[13px] font-medium mb-1.5 block" style={{ color: 'var(--text-1)' }}>演示主题</label>
             <input type="text" value={topic} onChange={e => setTopic(e.target.value)}
               placeholder="例如：2024年Q3技术架构升级方案"
-              className="w-full h-10 px-3.5 rounded-lg text-[14px] outline-none transition-all"
-              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
-              onFocus={e => { e.target.style.borderColor = 'var(--accent)'; }}
-              onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; }} />
+              className="input w-full h-10 px-3.5 text-[14px]" />
           </div>
 
           {/* Description */}
@@ -312,10 +344,7 @@ function HomeInner() {
             <textarea value={description} onChange={e => setDescription(e.target.value)}
               placeholder="核心论点、关键数据、期望结论"
               rows={4}
-              className="w-full px-3.5 py-2.5 rounded-lg text-[14px] outline-none resize-none transition-all"
-              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }}
-              onFocus={e => { e.target.style.borderColor = 'var(--accent)'; }}
-              onBlur={e => { e.target.style.borderColor = 'var(--border-0)'; }} />
+              className="input w-full px-3.5 py-2.5 text-[14px] resize-none" />
           </div>
 
           {/* Scenes */}
@@ -326,7 +355,7 @@ function HomeInner() {
                 const active = scenes.includes(s);
                 return (
                   <button key={s}
-                    onClick={() => active ? setScenes(p => p.split(/[,，]/).filter(x => x.trim() !== s).join('，')) : setScenes(p => p ? `${p}，${s}` : s)}
+                    onClick={() => active ? setScenes(scenes.split(/[,，]/).filter(x => x.trim() !== s).join('，')) : setScenes(scenes ? `${scenes}，${s}` : s)}
                     className="h-7 px-3 rounded-md text-[12px] font-medium transition-all"
                     style={{
                       background: active ? 'var(--accent-light)' : 'var(--bg-1)',
@@ -423,10 +452,10 @@ function HomeInner() {
                   });
                   const { summary, texts } = await res.json();
                   if (summary) {
-                    setDescription(prev => prev ? `${prev}\n\n${summary}` : summary);
+                    setDescription(description ? `${description}\n\n${summary}` : summary);
                     setUrlInput('');
                   } else if (texts?.length) {
-                    setDescription(prev => prev ? `${prev}\n\n参考内容：${texts[0].slice(0, 500)}` : `参考内容：${texts[0].slice(0, 500)}`);
+                    setDescription(description ? `${description}\n\n参考内容：${texts[0].slice(0, 500)}` : `参考内容：${texts[0].slice(0, 500)}`);
                     setUrlInput('');
                   } else { alert('未能提取到内容'); }
                 } catch { alert('URL 提取失败'); }
@@ -440,23 +469,15 @@ function HomeInner() {
           </div>
 
           {/* Actions */}
-          <div className="space-y-2 pt-3">
+          <div className="space-y-2.5 pt-4 border-t" style={{ borderColor: 'var(--border-0)' }}>
             <button onClick={handleOutline} disabled={!topic.trim() || busy}
-              className="w-full h-11 rounded-lg text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
-              style={{ background: 'var(--bg-1)', border: '1px solid var(--border-1)', color: 'var(--text-0)' }}>
+              className={`w-full h-11 text-[13px] flex items-center justify-center gap-2 disabled:opacity-30 rounded-[var(--radius-md)] font-semibold transition-all ${outline ? 'btn-ghost' : 'btn-secondary'}`}>
               {Icon.search}
-              {outlineLoading ? <span className="animate-pulse-slow">大纲生成中...</span> : '生成大纲'}
+              {outlineLoading ? <span className="animate-pulse-slow">大纲生成中...</span> : outline ? '重新生成大纲' : '① 生成大纲'}
             </button>
             <button onClick={handlePreview} disabled={!topic.trim() || busy || !outline}
-              className="w-full h-11 rounded-lg text-[14px] font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-30"
-              style={{ background: 'var(--bg-1)', border: `1px solid ${outline ? palette.primary : 'var(--border-0)'}`, color: outline ? palette.primary : 'var(--text-2)' }}>
-              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '确认生成'}
-            </button>
-            <button onClick={handleGenerate} disabled={!topic.trim() || busy || !previewData}
-              className="w-full h-11 rounded-lg text-[14px] font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-30"
-              style={{ background: previewData ? palette.primary : 'var(--text-2)' }}>
-              {Icon.download}
-              {loading ? <span className="animate-pulse-slow">生成中...</span> : '下载 PPTX'}
+              className="btn-primary w-full h-11 text-[13px] flex items-center justify-center gap-2 disabled:opacity-30">
+              {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '② 确认生成'}
             </button>
           </div>
         </div>
@@ -465,8 +486,18 @@ function HomeInner() {
         {/* Main: Full-width content area */}
         <div className="flex-1 min-w-0 overflow-y-auto slide-gallery px-10" style={{ background: 'var(--bg-1)' }}>
           {(outlineLoading || previewing) && (
-            <div className="max-w-[720px] mx-auto px-6 pt-6">
+            <div className="max-w-[720px] mx-auto px-6 pt-6 animate-fade-in">
               <Progress phase={outlineLoading ? 'outline' : progressPhase} done={slidesDone} total={pageCount} accent={palette.primary} />
+              {/* Skeleton slides during generation */}
+              {previewing && slidesDone === 0 && (
+                <div className="mt-6 space-y-4">
+                  {Array.from({ length: 3 }, (_, i) => (
+                    <div key={i} className="rounded-xl overflow-hidden" style={{ animationDelay: `${i * 100}ms` }}>
+                      <div className="skeleton aspect-video" />
+                    </div>
+                  ))}
+                </div>
+              )}
               {/* Task log panel */}
               {taskLogs.length > 0 && (
                 <div className="mt-2 p-3 rounded-xl max-h-[200px] overflow-y-auto" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
@@ -487,31 +518,31 @@ function HomeInner() {
           {previewData ? (
             <SlideGallery data={previewData} active={activeSlide} setActive={setActiveSlide}
               theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
-              onSlideUpdate={(i, sl) => { const u = { ...previewData, slides: [...previewData.slides] }; u.slides[i] = sl; setPreviewData(u); pushHistory(u); }}
-              onSlidesReplace={sl => { const u = { ...previewData, slides: sl }; setPreviewData(u); pushHistory(u); }}
-              canUndo={historyIdx > 0} canRedo={historyIdx < history.length - 1} onUndo={undo} onRedo={redo} />
+              onSlideUpdate={(i, sl) => { store.updateSlide(i, sl); autoSave({ slides: store.previewData?.slides }); }}
+              onSlidesReplace={sl => { store.replaceSlides(sl); autoSave({ slides: sl }); }}
+              canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
           ) : outline && !outlineLoading && !previewing ? (
             <div className="h-full px-8 py-6">
               <OutlineEditor outline={outline} setOutline={setOutline} accent={palette.primary} research={outlineResearch} />
             </div>
           ) : !hasContent ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-md">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-6" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
-                <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-0)' }}>开始创建演示文稿</h2>
-                <p className="text-[13px] mb-6" style={{ color: 'var(--text-2)' }}>在左侧输入主题，点击「生成大纲」开始</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {layoutPresets[pageCount].slice(0, 6).map((layout, i) => (
-                    <div key={i} className="slide-mini" style={{ background: i === 0 ? palette.primary : 'var(--bg-0)' }}>
-                      <div className="p-1.5 h-full flex flex-col">
-                        {i === 0 ? (
-                          <><div className="w-3/4 h-[2px] bg-white/70 rounded mb-0.5" /><div className="w-1/2 h-[2px] bg-white/40 rounded" /></>
-                        ) : (
-                          <><div className="w-2/3 h-[2px] rounded mb-0.5" style={{ background: palette.primary }} /><div className="w-full h-[1px] rounded mb-0.5" style={{ background: 'var(--border-0)' }} /><div className="w-4/5 h-[1px] rounded" style={{ background: 'var(--border-0)' }} /></>
-                        )}
-                      </div>
-                      <div className="slide-label">{layout.label}</div>
+            <div className="h-full flex items-center justify-center animate-fade-in">
+              <div className="text-center max-w-lg">
+                <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-8 shadow-lg" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
+                <h2 className="text-2xl font-bold mb-3 tracking-[-0.02em]" style={{ color: 'var(--text-0)' }}>开始创建演示文稿</h2>
+                <p className="text-[14px] mb-8 leading-relaxed" style={{ color: 'var(--text-1)' }}>在左侧输入主题和描述，AI 将自动搜索权威数据、生成专业大纲、渲染精美 Slide</p>
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  {[{ icon: '🔍', title: '智能研究', desc: '自动搜索权威数据' }, { icon: '✍️', title: 'AI 生成', desc: '16 种 Slide 布局' }, { icon: '📊', title: '质量检查', desc: '自动评分优化' }].map(f => (
+                    <div key={f.title} className="card p-4 text-center">
+                      <div className="text-2xl mb-2">{f.icon}</div>
+                      <div className="text-[12px] font-semibold mb-1">{f.title}</div>
+                      <div className="text-[11px]" style={{ color: 'var(--text-2)' }}>{f.desc}</div>
                     </div>
+                  ))}
+                </div>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  {SCENES.slice(0, 4).map(s => (
+                    <button key={s} onClick={() => { setScenes(s); if (!topic) setTopic(s); }} className="text-[11px] px-3 py-1.5 rounded-full font-medium transition-all hover:scale-105" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>{s}</button>
                   ))}
                 </div>
               </div>
@@ -640,41 +671,52 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
 
   return (
     <div className="px-6 py-6">
-      {/* Toolbar */}
-      <div className="max-w-[900px] mx-auto flex items-center gap-2 mb-4">
-        <span className="text-[14px] font-semibold flex-1">内容预览</span>
-        <button onClick={onUndo} disabled={!canUndo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20 hover:bg-gray-100" style={{ border: '1px solid var(--border-0)' }} title="撤销">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-        </button>
-        <button onClick={onRedo} disabled={!canRedo} className="w-7 h-7 rounded flex items-center justify-center disabled:opacity-20 hover:bg-gray-100" style={{ border: '1px solid var(--border-0)' }} title="重做">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
-        {score > 0 && (
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-            style={{ background: score >= 80 ? '#ECFDF5' : score >= 50 ? '#FFFBEB' : '#FEF2F2',
-              color: score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warn)' : 'var(--err)' }}>
-            {score}分
-          </span>
-        )}
-        {/* Edit inputs inline */}
-        <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
-          placeholder={`修改第${active + 1}页...`} onKeyDown={e => e.key === 'Enter' && handleRetry()}
-          className="w-40 h-8 px-2.5 rounded-lg text-[11px] outline-none" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
-        <button onClick={handleRetry} disabled={!retryInput.trim() || retrying}
-          className="h-8 px-2.5 rounded-lg text-[11px] font-medium text-white disabled:opacity-30" style={{ background: accent }}>
-          {retrying ? '...' : '重试'}
-        </button>
-        <input type="text" value={globalInput} onChange={e => setGlobalInput(e.target.value)}
-          placeholder="全局修改..." onKeyDown={e => e.key === 'Enter' && handleGlobalEdit()}
-          className="w-32 h-8 px-2.5 rounded-lg text-[11px] outline-none" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)', color: 'var(--text-0)' }} />
-        <button onClick={handleGlobalEdit} disabled={!globalInput.trim() || globalEditing}
-          className="h-8 px-2.5 rounded-lg text-[11px] font-medium disabled:opacity-30" style={{ border: `1px solid ${accent}`, color: accent }}>
-          {globalEditing ? '...' : '编辑'}
-        </button>
-        <button onClick={onGenerate} disabled={busy}
-          className="h-8 px-4 rounded-lg text-[11px] font-semibold text-white disabled:opacity-30" style={{ background: accent }}>
-          {loading ? '...' : '下载 PPTX'}
-        </button>
+      {/* Toolbar — Row 1: Title + Actions */}
+      <div className="max-w-[900px] mx-auto mb-3 animate-fade-in">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-[15px] font-bold flex-1 tracking-[-0.01em]">内容预览</span>
+          <div className="flex items-center gap-1.5">
+            <button onClick={onUndo} disabled={!canUndo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20 tooltip" data-tip="撤销">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
+            <button onClick={onRedo} disabled={!canRedo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20 tooltip" data-tip="重做">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          </div>
+          <div className="w-px h-5 bg-[var(--border-0)]" />
+          {score > 0 && (
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+              style={{ background: score >= 80 ? '#ECFDF5' : score >= 50 ? '#FFFBEB' : '#FEF2F2',
+                color: score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warn)' : 'var(--err)' }}>
+              {score}分
+            </span>
+          )}
+          <button onClick={onGenerate} disabled={busy} className="btn-primary h-9 px-5 text-[12px] disabled:opacity-30">
+            {Icon.download}
+            <span className="ml-1.5">{loading ? '生成中...' : '下载 PPTX'}</span>
+          </button>
+        </div>
+        {/* Row 2: Edit controls */}
+        <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
+          <div className="flex items-center gap-1.5 flex-1">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>P{active + 1}</span>
+            <input type="text" value={retryInput} onChange={e => setRetryInput(e.target.value)}
+              placeholder={`描述如何修改第 ${active + 1} 页...`} onKeyDown={e => e.key === 'Enter' && handleRetry()}
+              className="input flex-1 h-8 px-3 text-[12px]" />
+            <button onClick={handleRetry} disabled={!retryInput.trim() || retrying} className="btn-primary h-8 px-3 text-[11px] disabled:opacity-30">
+              {retrying ? '修改中...' : '修改此页'}
+            </button>
+          </div>
+          <div className="w-px h-6 bg-[var(--border-0)]" />
+          <div className="flex items-center gap-1.5">
+            <input type="text" value={globalInput} onChange={e => setGlobalInput(e.target.value)}
+              placeholder="全局修改指令..." onKeyDown={e => e.key === 'Enter' && handleGlobalEdit()}
+              className="input w-44 h-8 px-3 text-[12px]" />
+            <button onClick={handleGlobalEdit} disabled={!globalInput.trim() || globalEditing} className="btn-secondary h-8 px-3 text-[11px] font-semibold disabled:opacity-30">
+              {globalEditing ? '修改中...' : '全局编辑'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Research summary */}
@@ -691,29 +733,34 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
       )}
 
       {/* Thumbnail Navigation */}
-      <div className="max-w-[900px] mx-auto mb-4 flex gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
+      <div className="max-w-[900px] mx-auto mb-5 flex gap-2 overflow-x-auto pb-2 scrollbar-thin animate-fade-in">
         {slides.map((sl, i) => (
           <button key={i} onClick={() => { setActive(i); document.getElementById(`slide-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
-            className={`shrink-0 w-16 h-10 rounded-md overflow-hidden border-2 transition-all ${i === active ? 'scale-105' : 'opacity-60 hover:opacity-90'}`}
-            style={{ borderColor: i === active ? accent : 'transparent' }}>
-            <div className="w-full h-full flex items-center justify-center text-[5px] font-bold" style={{ background: theme.background, color: theme.primary }}>
-              {i + 1}
+            className={`thumb shrink-0 w-24 h-[54px] ${i === active ? 'thumb-active' : ''}`}>
+            <div className="w-full h-full relative" style={{ background: theme.background }}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-1">
+                <span className="text-[5px] font-bold truncate w-full text-center" style={{ color: theme.primary }}>{sl.title}</span>
+                <span className="text-[4px] mt-0.5" style={{ color: theme.text, opacity: 0.5 }}>{TYPE_LABEL[sl.type] || sl.type}</span>
+              </div>
+              <span className="absolute bottom-0.5 right-1 text-[4px] font-bold" style={{ color: theme.primary, opacity: 0.4 }}>{i + 1}</span>
             </div>
           </button>
         ))}
       </div>
 
-      {/* Slide Gallery: vertical scroll, each slide full-width */}
-      <div className="max-w-[900px] mx-auto space-y-6">
+      {/* Slide Gallery */}
+      <div className="max-w-[900px] mx-auto space-y-8">
         {slides.map((sl, i) => (
-          <div key={i} id={`slide-${i}`} onClick={() => setActive(i)}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px] font-semibold w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ background: i === active ? accent : 'var(--text-2)' }}>{i + 1}</span>
-              <span className="text-[11px] font-medium" style={{ color: i === active ? accent : 'var(--text-2)' }}>
-                {TYPE_LABEL[sl.type] || sl.type} · {sl.layout || 'full-text'}
+          <div key={i} id={`slide-${i}`} onClick={() => setActive(i)} className="animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <span className={`text-[11px] font-bold w-7 h-7 rounded-lg flex items-center justify-center text-white transition-all ${i === active ? 'scale-110' : ''}`}
+                style={{ background: i === active ? accent : 'var(--text-2)' }}>{i + 1}</span>
+              <span className="text-[12px] font-semibold" style={{ color: i === active ? 'var(--text-0)' : 'var(--text-1)' }}>
+                {TYPE_LABEL[sl.type] || sl.type}
               </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-md" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>{sl.layout || 'full-text'}</span>
               {sl.source && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium ml-auto"
+                <span className="text-[9px] px-2 py-0.5 rounded-full font-semibold ml-auto"
                   style={{
                     background: sl.sourceType === 'official' ? '#ECFDF5' : sl.sourceType === 'research' ? '#EFF6FF' : '#FFFBEB',
                     color: sl.sourceType === 'official' ? 'var(--success)' : sl.sourceType === 'research' ? '#2563EB' : 'var(--warn)',
@@ -722,13 +769,13 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
                 </span>
               )}
               {i === active && (
-                <button onClick={(e) => { e.stopPropagation(); setZoomed(true); }} className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100" style={{ border: '1px solid var(--border-0)' }} title="放大">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={P} strokeWidth="2" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                <button onClick={(e) => { e.stopPropagation(); setZoomed(true); }} className="btn-ghost w-7 h-7 flex items-center justify-center tooltip" data-tip="放大">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
                 </button>
               )}
             </div>
-            <div className={`slide-card ${i === active ? 'ring-2' : ''}`} style={i === active ? { ['--tw-ring-color' as string]: accent } : undefined}>
-              <SlideRenderer slide={sl} theme={theme} themeKey={themeKey} pageNum={i + 1} total={slides.length} />
+            <div className={`slide-card ${i === active ? 'slide-card-active' : ''}`}>
+              <SlideRenderer slide={sl} theme={theme} themeKey={themeKey} pageNum={i + 1} total={slides.length} editable={i === active} onUpdate={(updated) => onSlideUpdate(i, updated)} />
             </div>
           </div>
         ))}
@@ -736,20 +783,22 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
 
       {/* Zoom Modal */}
       {zoomed && slides[active] && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => setZoomed(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur animate-scale-in" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setZoomed(false)}>
           <div className="relative w-[92vw] max-w-[1100px]" onClick={e => e.stopPropagation()}>
-            <SlideRenderer slide={slides[active]} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} />
+            <div className="rounded-xl overflow-hidden shadow-2xl">
+              <SlideRenderer slide={slides[active]} theme={theme} themeKey={themeKey} pageNum={active + 1} total={slides.length} editable onUpdate={(updated) => onSlideUpdate(active, updated)} />
+            </div>
             <button onClick={() => setActive(Math.max(0, active - 1))} disabled={active === 0}
-              className="absolute left-[-52px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20" style={{ background: 'rgba(0,0,0,0.5)' }}>
+              className="absolute left-[-56px] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center text-white disabled:opacity-20 hover:scale-110 transition-transform" style={{ background: 'rgba(255,255,255,0.15)' }}>
               {Icon.left}
             </button>
             <button onClick={() => setActive(Math.min(slides.length - 1, active + 1))} disabled={active === slides.length - 1}
-              className="absolute right-[-52px] top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-white disabled:opacity-20" style={{ background: 'rgba(0,0,0,0.5)' }}>
+              className="absolute right-[-56px] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center text-white disabled:opacity-20 hover:scale-110 transition-transform" style={{ background: 'rgba(255,255,255,0.15)' }}>
               {Icon.right}
             </button>
-            <div className="absolute -top-10 left-0 right-0 flex items-center justify-between">
-              <span className="text-white text-[13px] font-medium">{active + 1} / {slides.length}</span>
-              <button onClick={() => setZoomed(false)} className="text-white/70 text-[12px] hover:text-white">ESC 关闭</button>
+            <div className="absolute -top-12 left-0 right-0 flex items-center justify-between">
+              <span className="text-white text-[13px] font-semibold">{active + 1} / {slides.length} · {slides[active].title}</span>
+              <button onClick={() => setZoomed(false)} className="text-white/60 text-[12px] hover:text-white transition-colors px-3 py-1 rounded-md hover:bg-white/10">ESC 关闭</button>
             </div>
           </div>
         </div>
