@@ -63,7 +63,7 @@ ${outline.map((o, i) => `第${i + 1}页 [${o.type}/${o.layout}] ${o.title}
 ${hasOutline ? '' : `## 结构：${getStructureGuide(pageCount)}`}
 
 ## 布局（layout）— 智能选择指南
-full-text | metrics-grid | chart-focus | two-column | three-column | big-number | quote-highlight | table-focus | icon-grid | process-flow | funnel | pyramid | problem-solution | highlight
+full-text | metrics-grid | chart-focus | two-column | three-column | big-number | quote-highlight | table-focus | icon-grid | process-flow | funnel | pyramid | problem-solution | highlight | diagram
 
 ### 布局选择规则
 - 数字对比 → metrics-grid 或 big-number
@@ -77,6 +77,14 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - 战略-战术-执行 → pyramid（3层金字塔结构）
 - 问题-原因-对策 → problem-solution（3栏对比分析）
 - 关键数据高亮 → highlight（1个核心数据+解读）
+- 架构/流程/关系/网络拓扑 → diagram（AI生成SVG图表）
+
+### diagram 布局专用字段
+当 layout 为 "diagram" 时，必须提供 diagramDescription 字段：
+- diagramDescription：用自然语言描述图表内容，例如"用户注册流程：输入手机号→发送验证码→验证→创建账户→完成"
+- diagramStyle（可选）：blueprint | minimal | corporate | neon | hand-drawn | gradient | monochrome
+- 适用场景：系统架构图、业务流程图、组织架构图、技术栈关系图、网络拓扑图、决策树、思维导图
+- 每个演示文稿建议1-3页diagram，用于展示复杂关系和流程
 
 ## 商务设计规范
 - 字体：统一微软雅黑，仅用加粗/标准/细三种字重
@@ -97,6 +105,8 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - insight：核心洞察一句话，必须含数据
 - source：数据来源机构名
 - notes：演讲者备注150-250字，含讲解要点和补充数据
+- diagramDescription：当layout为diagram时必填，自然语言描述图表内容
+- diagramStyle：可选，diagram风格（blueprint/minimal/corporate/neon/hand-drawn/gradient/monochrome）
 - needsImage：始终false
 
 ## 约束
@@ -300,6 +310,10 @@ function normalizeSlide(s: SlideContent, i: number, total: number): SlideContent
   if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
   if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
   if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
+  // For diagram layout: ensure diagramDescription is populated from bullets if missing
+  if (s.layout === 'diagram' && !s.diagramDescription && s.bullets?.length) {
+    s.diagramDescription = s.bullets.join('；');
+  }
   if (s.source) {
     const official = /gartner|idc|mckinsey|bcg|forrester|statista|deloitte|pwc|kpmg|ey|bain|accenture|政府|统计局|财报|annual report|白皮书/i;
     s.sourceType = official.test(s.source) ? 'official' : 'research';

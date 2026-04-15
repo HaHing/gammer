@@ -131,7 +131,7 @@ export default function EditPage() {
 function CardEditor({ slide, index, active, onSelect, onUpdate }: {
   slide: SlideContent; index: number; active: boolean; onSelect: () => void; onUpdate: (s: SlideContent) => void;
 }) {
-  const LAYOUTS: SlideContent['layout'][] = ['full-text', 'two-column', 'three-column', 'big-number', 'chart-focus', 'table-focus', 'icon-grid', 'process-flow', 'quote-highlight', 'metrics-grid', 'funnel', 'pyramid', 'problem-solution', 'highlight'];
+  const LAYOUTS: SlideContent['layout'][] = ['full-text', 'two-column', 'three-column', 'big-number', 'chart-focus', 'table-focus', 'icon-grid', 'process-flow', 'quote-highlight', 'metrics-grid', 'funnel', 'pyramid', 'problem-solution', 'highlight', 'diagram'];
   return (
     <div onClick={onSelect} className={`rounded-xl p-4 space-y-3 transition-all ${active ? 'ring-2 ring-purple-500' : ''}`}
       style={{ background: 'var(--bg-0, #fff)', border: '1px solid var(--border-0, #e5e7eb)' }}>
@@ -187,6 +187,14 @@ function CardEditor({ slide, index, active, onSelect, onUpdate }: {
           <input value={slide.insight || ''} onChange={e => onUpdate({ ...slide, insight: e.target.value })}
             className="w-full text-[12px] px-3 py-1 rounded-lg outline-none mt-0.5"
             style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }} placeholder="💡 洞察" />
+        </div>
+      )}
+      {slide.layout === 'diagram' && (
+        <div>
+          <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>📐 图表描述</span>
+          <textarea value={slide.diagramDescription || ''} onChange={e => onUpdate({ ...slide, diagramDescription: e.target.value })}
+            className="w-full text-[12px] px-3 py-1.5 rounded-lg outline-none mt-0.5 resize-none" rows={2}
+            style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }} placeholder="用自然语言描述图表，如：用户注册流程：输入手机号→验证→创建账户" />
         </div>
       )}
     </div>

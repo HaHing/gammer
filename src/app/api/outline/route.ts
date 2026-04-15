@@ -47,7 +47,8 @@ ${findings}
 - 严格${pageCount}个元素的JSON数组
 - 每个元素: {"title":"有观点的结论句标题","bullets":["要点1","要点2","要点3"],"type":"slide类型","layout":"布局"}
 - type: cover/toc/content/data/comparison/timeline/summary/action
-- layout: full-text/metrics-grid/chart-focus/two-column/three-column/big-number/quote-highlight/table-focus/icon-grid/process-flow/funnel
+- layout: full-text/metrics-grid/chart-focus/two-column/three-column/big-number/quote-highlight/table-focus/icon-grid/process-flow/funnel/pyramid/problem-solution/highlight/diagram
+- 当layout为diagram时，bullets中描述图表内容（如"系统架构：前端→API网关→微服务→数据库"）
 - title必须是有观点的结论句，不是"概述"
 - bullets 3-5条，每条20-40字，概括要讲的内容方向
 - 第一页必须是cover，最后一页必须是summary/action

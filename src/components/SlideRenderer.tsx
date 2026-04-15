@@ -135,7 +135,11 @@ function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate
       {layout === 'pyramid' && <Pyramid bullets={slide.bullets || []} theme={theme} />}
       {layout === 'problem-solution' && <ProblemSolution bullets={slide.bullets || []} theme={theme} />}
       {layout === 'highlight' && <Highlight metric={slide.keyMetrics?.[0]} insight={slide.insight} theme={theme} />}
-      {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel', 'pyramid', 'problem-solution', 'highlight'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
+      {layout === 'diagram' && slide.diagramSvg && <DiagramView svg={slide.diagramSvg} />}
+      {layout === 'diagram' && !slide.diagramSvg && slide.diagramDescription && (
+        <div className="flex items-center justify-center h-12 text-[6px] italic" style={{ color: theme.secondary }}>📐 {slide.diagramDescription}</div>
+      )}
+      {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel', 'pyramid', 'problem-solution', 'highlight', 'diagram'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
         <BulletList bullets={slide.bullets} theme={theme} design={design} editable={editable} onBulletChange={editable && onUpdate ? (idx, val) => { const b = [...(slide.bullets || [])]; b[idx] = val; onUpdate({ ...slide, bullets: b }); } : undefined} />
       )}
 
@@ -446,6 +450,12 @@ function LineChart({ data, theme }: { data: NonNullable<SlideContent['chartData'
         ))}
       </svg>
     </div>
+  );
+}
+
+function DiagramView({ svg }: { svg: string }) {
+  return (
+    <div className="mt-1 flex justify-center" dangerouslySetInnerHTML={{ __html: svg.replace(/<svg/, '<svg class="w-full max-h-[55px]" style="height:auto"') }} />
   );
 }
 

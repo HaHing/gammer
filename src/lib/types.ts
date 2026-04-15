@@ -13,7 +13,9 @@ export interface ThemeConfig {
 }
 
 export type SlideType = 'cover' | 'toc' | 'content' | 'data' | 'comparison' | 'timeline' | 'architecture' | 'summary' | 'action' | 'appendix';
-export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight' | 'table-focus' | 'icon-grid' | 'process-flow' | 'funnel' | 'pyramid' | 'problem-solution' | 'highlight';
+export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight' | 'table-focus' | 'icon-grid' | 'process-flow' | 'funnel' | 'pyramid' | 'problem-solution' | 'highlight' | 'diagram';
+
+export type DiagramStyle = 'blueprint' | 'minimal' | 'corporate' | 'neon' | 'hand-drawn' | 'gradient' | 'monochrome';
 
 export interface KeyMetric {
   label: string;
@@ -52,6 +54,9 @@ export interface SlideContent {
   needsImage?: boolean;
   imageUrl?: string; // base64 data URL or remote URL
   imagePrompt?: string; // prompt used to generate the image
+  diagramSvg?: string; // SVG diagram content (generated from natural language)
+  diagramDescription?: string; // natural language description for diagram generation
+  diagramStyle?: DiagramStyle; // visual style for the diagram
   tableData?: { headers: string[]; rows: string[][] };
   designNotes?: string;
 }

@@ -301,6 +301,7 @@ function renderContentSlide(slide: PptxGenJS.Slide, content: SlideContent, theme
     case 'pyramid': renderPyramidLayout(slide, content, theme, design); break;
     case 'problem-solution': renderProblemSolutionLayout(slide, content, theme, design); break;
     case 'highlight': renderHighlightLayout(slide, content, theme, design); break;
+    case 'diagram': renderDiagramLayout(slide, content, theme); break;
     default: renderDefaultLayout(slide, content, theme, design); break;
   }
 
@@ -632,6 +633,15 @@ function renderTimeline(slide: PptxGenJS.Slide, content: SlideContent, theme: Th
   }
   if (content.insight) renderInsight(slide, content.insight, theme, 5.5, CW, PAD, design.insightStyle);
   addFooter(slide, theme, design, pageNum, total);
+}
+
+function renderDiagramLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig) {
+  if (content.diagramSvg) {
+    const svgBase64 = Buffer.from(content.diagramSvg).toString('base64');
+    slide.addImage({ data: `data:image/svg+xml;base64,${svgBase64}`, x: PAD, y: 1.1, w: CW, h: 5.5 });
+  } else if (content.diagramDescription) {
+    slide.addText(`📐 ${content.diagramDescription}`, { x: PAD, y: 2.5, w: CW, h: 2, fontSize: 14, color: c(theme.secondary), italic: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei' });
+  }
 }
 
 // ─── Main export ───
