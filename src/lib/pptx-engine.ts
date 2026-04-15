@@ -648,7 +648,42 @@ function renderDiagramLayout(slide: PptxGenJS.Slide, content: SlideContent, them
     const svgBase64 = Buffer.from(content.diagramSvg).toString('base64');
     slide.addImage({ data: `data:image/svg+xml;base64,${svgBase64}`, x: PAD, y: 1.1, w: CW, h: 5.5 });
   } else if (content.diagramDescription) {
-    slide.addText(`📐 ${content.diagramDescription}`, { x: PAD, y: 2.5, w: CW, h: 2, fontSize: 14, color: c(theme.secondary), italic: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei' });
+    // Parse "A → B → C" into structured flowchart boxes
+    const nodes = content.diagramDescription.split(/[→➜⟶;；]/).map(s => s.replace(/^[：:]\s*/, '').trim()).filter(Boolean);
+    if (nodes.length > 1) {
+      const maxPerRow = Math.min(nodes.length, 5);
+      const rows = Math.ceil(nodes.length / maxPerRow);
+      const boxW = Math.min((CW - 0.3 * (maxPerRow - 1)) / maxPerRow, 2.2);
+      const arrowW = 0.3;
+      const totalW = nodes.length <= maxPerRow ? boxW * maxPerRow + arrowW * (maxPerRow - 1) : CW;
+      const startX = PAD + (CW - totalW) / 2;
+      for (let r = 0; r < rows; r++) {
+        const rowNodes = nodes.slice(r * maxPerRow, (r + 1) * maxPerRow);
+        const rowY = 1.5 + r * 1.8;
+        for (let i = 0; i < rowNodes.length; i++) {
+          const nx = startX + i * (boxW + arrowW);
+          const isFirst = r === 0 && i === 0;
+          const isLast = r === rows - 1 && i === rowNodes.length - 1;
+          const bg = isFirst ? c(theme.primary) : isLast ? c(theme.accent) : 'F3F4F6';
+          const fg = isFirst || isLast ? 'FFFFFF' : c(theme.primary);
+          slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: nx, y: rowY, w: boxW, h: 0.9, fill: { color: bg }, rectRadius: 0.1, line: { color: isFirst || isLast ? bg : c(theme.primary), width: 0.5, dashType: 'solid' } });
+          // Parse "Label(detail)" or "Label：detail"
+          const m = rowNodes[i].match(/^(.+?)[（(](.+?)[）)]$/) || rowNodes[i].match(/^(.{2,15})[：:](.+)$/);
+          if (m) {
+            slide.addText(m[1].trim(), { x: nx, y: rowY + 0.1, w: boxW, h: 0.4, fontSize: 10, color: fg, bold: true, align: 'center', fontFace: 'Microsoft YaHei' });
+            slide.addText(m[2].trim(), { x: nx, y: rowY + 0.45, w: boxW, h: 0.35, fontSize: 7, color: isFirst || isLast ? 'FFFFFFCC' : c(theme.secondary), align: 'center', fontFace: 'Microsoft YaHei' });
+          } else {
+            slide.addText(rowNodes[i], { x: nx, y: rowY, w: boxW, h: 0.9, fontSize: 10, color: fg, bold: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei', shrinkText: true });
+          }
+          // Arrow between nodes
+          if (i < rowNodes.length - 1) {
+            slide.addText('→', { x: nx + boxW, y: rowY, w: arrowW, h: 0.9, fontSize: 16, color: c(theme.secondary), align: 'center', valign: 'middle' });
+          }
+        }
+      }
+    } else {
+      slide.addText(`📐 ${content.diagramDescription}`, { x: PAD, y: 2.5, w: CW, h: 2, fontSize: 14, color: c(theme.secondary), italic: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei' });
+    }
   }
 }
 

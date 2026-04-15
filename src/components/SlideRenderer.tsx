@@ -137,7 +137,7 @@ function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate
       {layout === 'highlight' && <Highlight metric={slide.keyMetrics?.[0]} insight={slide.insight} theme={theme} />}
       {layout === 'diagram' && slide.diagramSvg && <DiagramView svg={slide.diagramSvg} />}
       {layout === 'diagram' && !slide.diagramSvg && slide.diagramDescription && (
-        <div className="flex items-center justify-center h-12 text-[6px] italic" style={{ color: theme.secondary }}>📐 {slide.diagramDescription}</div>
+        <DiagramFallback description={slide.diagramDescription} theme={theme} />
       )}
       {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel', 'pyramid', 'problem-solution', 'highlight', 'diagram'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
         <BulletList bullets={slide.bullets} theme={theme} design={design} editable={editable} onBulletChange={editable && onUpdate ? (idx, val) => { const b = [...(slide.bullets || [])]; b[idx] = val; onUpdate({ ...slide, bullets: b }); } : undefined} />
@@ -480,6 +480,57 @@ function LineChart({ data, theme }: { data: NonNullable<SlideContent['chartData'
 function DiagramView({ svg }: { svg: string }) {
   return (
     <div className="mt-1 flex justify-center" dangerouslySetInnerHTML={{ __html: svg.replace(/<svg/, '<svg class="w-full max-h-[55px]" style="height:auto"') }} />
+  );
+}
+
+function DiagramFallback({ description, theme }: { description: string; theme: ThemeConfig }) {
+  // Parse "A → B → C" or "A；B；C" into nodes
+  const nodes = description
+    .split(/[→➜⟶;；\n]/)
+    .map(s => s.replace(/^[：:]\s*/, '').trim())
+    .filter(Boolean);
+
+  if (nodes.length <= 1) {
+    return <div className="mt-1 text-[6px] text-center italic" style={{ color: theme.secondary }}>{description}</div>;
+  }
+
+  // Parse "Label(detail)" or "Label：detail" into title + subtitle
+  const parsed = nodes.map(n => {
+    const m = n.match(/^(.+?)[（(](.+?)[）)]$/) || n.match(/^(.{2,15})[：:](.+)$/);
+    return m ? { title: m[1].trim(), sub: m[2].trim() } : { title: n, sub: '' };
+  });
+
+  // Determine layout: if >5 nodes, use 2-row grid; otherwise single row
+  const useGrid = parsed.length > 5;
+
+  return (
+    <div className="mt-1">
+      <div className={useGrid ? 'grid grid-cols-3 gap-x-2 gap-y-1.5' : 'flex items-center justify-center gap-0.5'} style={{ flexWrap: useGrid ? undefined : 'wrap' }}>
+        {parsed.map((node, i) => (
+          <div key={i} className={useGrid ? 'flex items-center gap-1' : 'flex items-center gap-0.5'}>
+            {/* Node box */}
+            <div className="px-1.5 py-0.5 rounded text-center shrink-0" style={{
+              background: i === 0 ? theme.primary : i === parsed.length - 1 ? theme.accent : `${theme.primary}18`,
+              border: `0.5px solid ${i === 0 || i === parsed.length - 1 ? 'transparent' : theme.primary}40`,
+              minWidth: useGrid ? 'auto' : '28px',
+            }}>
+              <div className="text-[5px] font-bold leading-tight truncate" style={{
+                color: i === 0 || i === parsed.length - 1 ? '#fff' : theme.primary,
+                maxWidth: useGrid ? '80px' : '50px',
+              }}>{node.title}</div>
+              {node.sub && <div className="text-[3.5px] leading-tight truncate" style={{
+                color: i === 0 || i === parsed.length - 1 ? '#ffffffCC' : theme.secondary,
+                maxWidth: useGrid ? '80px' : '50px',
+              }}>{node.sub}</div>}
+            </div>
+            {/* Arrow */}
+            {i < parsed.length - 1 && (
+              <span className="text-[5px] shrink-0" style={{ color: theme.secondary }}>→</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

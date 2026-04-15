@@ -596,7 +596,7 @@ function HomeInner() {
 
 /* ── Progress ── */
 const STEPS = ['搜索', '大纲', '生成', '检查', '优化'];
-const STEP_ICONS = ['🔍', '📋', '✍️', '✅', '⚡'];
+const STEP_ICONS = ['⟐', '☰', '✦', '◈', '⚡'];
 
 function Progress({ phase, done, total, accent }: { phase: string; done: number; total: number; accent: string }) {
   const map: Record<string, number> = { outline: 0, research: 1, generating: 2, checking: 3, optimizing: 4, done: 5 };
