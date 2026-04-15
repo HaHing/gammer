@@ -1,4 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execFileAsync = promisify(execFile);
 
 export interface ResearchFinding {
   fact: string;
@@ -144,13 +149,50 @@ function extractAllText(content: Anthropic.Messages.ContentBlock[]): string {
   return content.filter(b => b.type === 'text').map(b => (b as { type: string; text: string }).text).join('\n');
 }
 
+// ─── Fetch URL content via Scrapling for enriched research ───
+
+const FETCH_SCRIPT = path.join(process.env.HOME || '~', '.kiro/skills/web-content-fetcher/scripts/fetch.py');
+const STEALTH_DOMAINS = ['mp.weixin.qq.com', 'zhuanlan.zhihu.com', 'juejin.cn'];
+
+async function fetchUrlContent(url: string): Promise<string> {
+  try {
+    const domain = new URL(url).hostname;
+    const args = [FETCH_SCRIPT, url, '6000', '--json'];
+    if (STEALTH_DOMAINS.some(d => domain.includes(d))) args.splice(3, 0, '--stealth');
+    const { stdout } = await execFileAsync('python3', args, { timeout: 30000 });
+    const data = JSON.parse(stdout.trim().split('\n').pop() || '{}');
+    if (data.content && data.content.length > 100) {
+      console.log(`[Research] Fetched ${data.content.length} chars from ${url}`);
+      return data.content;
+    }
+  } catch (e) {
+    console.log(`[Research] URL fetch failed: ${(e as Error).message?.substring(0, 80)}`);
+  }
+  return '';
+}
+
+function extractUrls(text: string): string[] {
+  const matches = text.match(/https?:\/\/[^\s,，)）\]]+/g) || [];
+  return [...new Set(matches)].slice(0, 3);
+}
+
 // ─── Main research function ───
 
 export async function conductResearch(topic: string, description: string, scenes: string, pageCount?: number): Promise<ResearchReport> {
   console.log(`[Research] Starting for: "${topic}" (${pageCount || 10} pages)`);
 
+  // Phase 0: Extract and fetch URLs from description for enriched context
+  const urls = extractUrls(description);
+  let urlContext = '';
+  if (urls.length > 0) {
+    console.log(`[Research] Found ${urls.length} URLs in description, fetching...`);
+    const contents = await Promise.all(urls.map(u => fetchUrlContent(u)));
+    urlContext = contents.filter(Boolean).join('\n\n---\n\n');
+    if (urlContext) console.log(`[Research] URL context: ${urlContext.length} chars`);
+  }
+
   // Phase 1: Deep web search with 20+ queries
-  const report = await deepWebSearch(topic, description, scenes);
+  const report = await deepWebSearch(topic, description, scenes, urlContext);
 
   // Phase 2: If web search failed or insufficient, use knowledge fallback
   if (report.keyStats.length < 8 || report.results[0]?.findings?.length < 15) {
@@ -173,8 +215,9 @@ export async function conductResearch(topic: string, description: string, scenes
   return report;
 }
 
-async function deepWebSearch(topic: string, description: string, scenes: string): Promise<ResearchReport> {
+async function deepWebSearch(topic: string, description: string, scenes: string, urlContext: string = ''): Promise<ResearchReport> {
   try {
+    const urlSection = urlContext ? `\n\n## 用户提供的参考资料（高优先级，必须引用）\n${urlContext.substring(0, 8000)}` : '';
     // Use streaming to avoid 10-minute timeout with web_search tool
     const stream = client.messages.stream({
       model: 'claude-sonnet-4-20250514',
@@ -190,7 +233,7 @@ async function deepWebSearch(topic: string, description: string, scenes: string)
 
 ## 补充信息
 描述: ${description || '无'}
-场景: ${scenes || '通用'}
+场景: ${scenes || '通用'}${urlSection}
 
 ## 搜索策略（执行10次高质量搜索）
 1. "${topic} 市场规模 2024 亿元"

@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { PageCount, StyleTheme, SlideContent, OutlineItem } from './types';
+import type { PageCount, StyleTheme, SlideContent, SlideLayout, OutlineItem } from './types';
 import type { ResearchReport } from './research-engine';
 import { safeParseJSONArray } from './research-engine';
 import { themeDesigns } from './theme-design';
@@ -307,6 +307,23 @@ export async function generateWithAI(
         slides.push({ type: 'content', layout: 'full-text', title: '补充内容', bullets: ['待完善'], needsImage: false });
       }
       if (slides.length > pageCount) slides.length = pageCount;
+
+      // Visual rhythm enforcement: break up 3+ consecutive text-heavy layouts
+      const textHeavy = new Set(['full-text', 'two-column', 'three-column']);
+      const visualUpgrades: SlideLayout[] = ['metrics-grid', 'icon-grid', 'process-flow', 'diagram'];
+      for (let i = 2; i < slides.length; i++) {
+        if (['cover', 'toc'].includes(slides[i].type)) continue;
+        if (textHeavy.has(slides[i].layout) && textHeavy.has(slides[i-1].layout) && textHeavy.has(slides[i-2].layout)) {
+          const s = slides[i];
+          const bulletCount = s.bullets?.length || 0;
+          const hasMetrics = (s.keyMetrics?.length || 0) > 0;
+          // Pick best visual upgrade based on content
+          if (hasMetrics) { s.layout = 'metrics-grid'; }
+          else if (bulletCount >= 3 && bulletCount <= 6) { s.layout = visualUpgrades[Math.floor(Math.random() * 2) + 1]; } // icon-grid or process-flow
+          else if (looksLikeDiagram(s)) { s.layout = 'diagram'; if (!s.diagramDescription && s.bullets?.length) s.diagramDescription = s.bullets.join('→'); }
+          else if (bulletCount >= 4) { s.layout = 'icon-grid'; }
+        }
+      }
 
       // Ensure last slide is summary/action
       const last = slides[slides.length - 1];

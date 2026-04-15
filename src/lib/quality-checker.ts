@@ -37,6 +37,28 @@ export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; 
     }
   }
 
+  // Visual rhythm: flag 3+ consecutive text-heavy layouts (full-text, two-column, three-column)
+  const textHeavy = new Set(['full-text', 'two-column', 'three-column']);
+  let textRun = 0;
+  for (let i = 0; i < slides.length; i++) {
+    if (['cover', 'toc'].includes(slides[i].type)) { textRun = 0; continue; }
+    if (textHeavy.has(slides[i].layout)) {
+      textRun++;
+      if (textRun >= 3) {
+        issues.push({ page: i + 1, issue: `连续${textRun}页文字密集布局，缺少视觉节奏（建议插入 metrics-grid/chart-focus/diagram/icon-grid）`, severity: 'warning' });
+      }
+    } else {
+      textRun = 0;
+    }
+  }
+
+  // Visual rhythm: no diagram/process-flow/icon-grid in entire deck
+  const visualLayouts = new Set(['diagram', 'process-flow', 'icon-grid', 'funnel', 'pyramid']);
+  const hasVisualLayout = contentSlides.some(s => visualLayouts.has(s.layout));
+  if (contentSlides.length >= 8 && !hasVisualLayout) {
+    issues.push({ page: 0, issue: '缺少视觉化布局（diagram/process-flow/icon-grid），建议至少1页', severity: 'warning' });
+  }
+
   // Per-slide checks
   slides.forEach((s, i) => {
     const page = i + 1;

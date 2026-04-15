@@ -1,29 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execFileAsync = promisify(execFile);
 
 const client = new Anthropic({
   baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
   apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
 });
 
+const FETCH_SCRIPT = path.join(process.env.HOME || '~', '.kiro/skills/web-content-fetcher/scripts/fetch.py');
+const STEALTH_DOMAINS = ['mp.weixin.qq.com', 'zhuanlan.zhihu.com', 'juejin.cn'];
+
+async function fetchWithScrapling(url: string, maxChars = 8000): Promise<string> {
+  try {
+    const domain = new URL(url).hostname;
+    const args = [FETCH_SCRIPT, url, String(maxChars), '--json'];
+    if (STEALTH_DOMAINS.some(d => domain.includes(d))) args.splice(3, 0, '--stealth');
+    const { stdout } = await execFileAsync('python3', args, { timeout: 30000 });
+    const data = JSON.parse(stdout.trim().split('\n').pop() || '{}');
+    if (data.content && data.content.length > 50) return data.content;
+  } catch (e) {
+    console.log(`[FetchURL] Scrapling failed for ${url}: ${(e as Error).message?.substring(0, 100)}`);
+  }
+  return '';
+}
+
+async function fetchFallback(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 Gammer/0.1' }, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return '';
+    const html = await res.text();
+    return html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000);
+  } catch { return ''; }
+}
+
 export async function POST(req: NextRequest) {
   const { urls, topic } = await req.json() as { urls: string[]; topic?: string };
   const rawTexts: string[] = [];
 
   for (const url of urls.slice(0, 5)) {
-    try {
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 Gammer/0.1' }, signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
-      const html = await res.text();
-      const text = html
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 3000);
-      if (text.length > 50) rawTexts.push(text);
-    } catch { /* skip */ }
+    // Try Scrapling first (preserves markdown structure), fallback to basic fetch
+    let text = await fetchWithScrapling(url);
+    if (!text) text = await fetchFallback(url);
+    if (text.length > 50) rawTexts.push(text);
   }
 
   if (rawTexts.length === 0) return NextResponse.json({ texts: [], summary: '' });
