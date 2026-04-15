@@ -77,6 +77,41 @@ const THEME_PALETTES: Record<StyleTheme, { primary: string; accent: string; labe
     { primary: '#0F2B46', accent: '#2D8B6F', label: '蓝绿搭' },
     { primary: '#1E3A5F', accent: '#2A7AB5', label: '商务蓝' },
   ],
+  anchnet: [
+    { primary: '#1B3A6B', accent: '#00B4D8', label: '科技蓝' },
+    { primary: '#1B3A6B', accent: '#00C9A7', label: '蓝绿搭' },
+    { primary: '#1B3A6B', accent: '#E8963C', label: '蓝橙搭' },
+    { primary: '#0D4F5C', accent: '#00B4D8', label: '青蓝搭' },
+    { primary: '#1B3A6B', accent: '#6B8CAE', label: '蓝灰搭' },
+  ],
+  'anchnet-teal': [
+    { primary: '#0D4F5C', accent: '#00C9A7', label: '青翠' },
+    { primary: '#0D4F5C', accent: '#00B4D8', label: '青蓝搭' },
+    { primary: '#0D4F5C', accent: '#E8963C', label: '青橙搭' },
+    { primary: '#1A5C5C', accent: '#00C9A7', label: '深青绿' },
+    { primary: '#0D4F5C', accent: '#5B8A94', label: '青灰搭' },
+  ],
+  'anchnet-dark': [
+    { primary: '#0A1E3D', accent: '#2E9BDB', label: '深邃蓝' },
+    { primary: '#0A1E3D', accent: '#00C9A7', label: '深蓝绿' },
+    { primary: '#0A1E3D', accent: '#C8963E', label: '深蓝金' },
+    { primary: '#0F2847', accent: '#2E9BDB', label: '藏青蓝' },
+    { primary: '#0A1E3D', accent: '#4A6580', label: '深蓝灰' },
+  ],
+  'anchnet-gradient': [
+    { primary: '#1A4B8C', accent: '#00D4AA', label: '蓝绿渐变' },
+    { primary: '#1A4B8C', accent: '#00B4D8', label: '蓝青搭' },
+    { primary: '#1A4B8C', accent: '#E8963C', label: '蓝橙搭' },
+    { primary: '#0D6B5E', accent: '#00D4AA', label: '绿渐变' },
+    { primary: '#1A4B8C', accent: '#6B8CAE', label: '蓝灰搭' },
+  ],
+  'anchnet-warm': [
+    { primary: '#2C4A7C', accent: '#E8963C', label: '暖蓝橙' },
+    { primary: '#2C4A7C', accent: '#C8963E', label: '蓝金搭' },
+    { primary: '#2C4A7C', accent: '#00B4D8', label: '暖蓝青' },
+    { primary: '#2C4A7C', accent: '#7A8FA5', label: '暖蓝灰' },
+    { primary: '#3A5A8C', accent: '#E8963C', label: '亮蓝橙' },
+  ],
 };
 
 const THEMES: { key: StyleTheme; name: string; dot: string; icon: string }[] = [
@@ -87,6 +122,11 @@ const THEMES: { key: StyleTheme; name: string; dot: string; icon: string }[] = [
   { key: 'pwc', name: '暖色', dot: '#4A2C1A', icon: 'P' },
   { key: 'brand', name: '品牌', dot: '#2D1B69', icon: '✦' },
   { key: 'haio', name: '极简', dot: '#0F2B46', icon: 'H' },
+  { key: 'anchnet', name: '安畅蓝', dot: '#1B3A6B', icon: '☁' },
+  { key: 'anchnet-teal', name: '安畅青', dot: '#0D4F5C', icon: '☁' },
+  { key: 'anchnet-dark', name: '安畅深', dot: '#0A1E3D', icon: '☁' },
+  { key: 'anchnet-gradient', name: '安畅渐变', dot: '#1A4B8C', icon: '☁' },
+  { key: 'anchnet-warm', name: '安畅暖', dot: '#2C4A7C', icon: '☁' },
 ];
 
 const SCENES = [

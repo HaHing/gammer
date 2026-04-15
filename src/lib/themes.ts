@@ -78,4 +78,54 @@ export const themes: Record<StyleTheme, ThemeConfig> = {
     lightGray: '#F1F4F7',
     description: '极简·深色封面·高端商务',
   },
+  anchnet: {
+    name: '安畅科技蓝',
+    primary: '#1B3A6B',     // 安畅深蓝 — 标题/导航
+    secondary: '#5A7394',   // 蓝灰 — 信息层级
+    accent: '#00B4D8',      // 安畅青蓝 — CTA/强调
+    background: '#FFFFFF',
+    text: '#1E2A3A',
+    lightGray: '#F0F5FA',
+    description: '安畅官网·科技蓝·云服务',
+  },
+  'anchnet-teal': {
+    name: '安畅青绿',
+    primary: '#0D4F5C',     // 深青绿 — 标题
+    secondary: '#5B8A94',   // 青灰 — 信息层级
+    accent: '#00C9A7',      // 翠绿 — 强调
+    background: '#FFFFFF',
+    text: '#1A2E35',
+    lightGray: '#EFF7F5',
+    description: '安畅·青绿色调·数据智能',
+  },
+  'anchnet-dark': {
+    name: '安畅深邃',
+    primary: '#0A1E3D',     // 极深藏青 — 标题
+    secondary: '#4A6580',   // 冷蓝灰 — 信息层级
+    accent: '#2E9BDB',      // 亮蓝 — 强调
+    background: '#FAFCFE',
+    text: '#0F1B2D',
+    lightGray: '#EDF2F7',
+    description: '安畅·深邃蓝·高端商务',
+  },
+  'anchnet-gradient': {
+    name: '安畅渐变',
+    primary: '#1A4B8C',     // 渐变蓝起点 — 标题
+    secondary: '#6B8CAE',   // 中蓝灰 — 信息层级
+    accent: '#00D4AA',      // 渐变绿终点 — 强调
+    background: '#FFFFFF',
+    text: '#1C2D3F',
+    lightGray: '#F2F8F6',
+    description: '安畅·蓝绿渐变·云原生',
+  },
+  'anchnet-warm': {
+    name: '安畅暖蓝',
+    primary: '#2C4A7C',     // 暖蓝 — 标题
+    secondary: '#7A8FA5',   // 暖灰蓝 — 信息层级
+    accent: '#E8963C',      // 暖橙 — 强调
+    background: '#FFFFFF',
+    text: '#1F2D3D',
+    lightGray: '#F5F3F0',
+    description: '安畅·暖蓝橙·企业服务',
+  },
 };

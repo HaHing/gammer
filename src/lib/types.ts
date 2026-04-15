@@ -1,5 +1,5 @@
 export type PageCount = 5 | 10 | 15 | 20 | 25;
-export type StyleTheme = 'google' | 'amazon' | 'microsoft' | 'deloitte' | 'pwc' | 'brand' | 'haio';
+export type StyleTheme = 'google' | 'amazon' | 'microsoft' | 'deloitte' | 'pwc' | 'brand' | 'haio' | 'anchnet' | 'anchnet-teal' | 'anchnet-dark' | 'anchnet-gradient' | 'anchnet-warm';
 
 export interface ThemeConfig {
   name: string;
