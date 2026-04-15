@@ -20,18 +20,18 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5]">
       <div className="w-full max-w-sm p-8 rounded-2xl bg-white border border-[#e5e5e5]">
         <div className="flex items-center gap-2.5 mb-6 justify-center">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #F24E1E, #A259FF)' }}>G</div>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
           <span className="font-semibold text-lg tracking-tight">Gammer</span>
         </div>
         <h2 className="text-center text-lg font-semibold mb-6">登录 / 注册</h2>
         <div className="space-y-3">
           <input value={name} onChange={e => setName(e.target.value)} placeholder="你的名字（可选）"
-            className="w-full px-4 py-3 rounded-lg text-sm outline-none border-[1.5px] border-[#e5e5e5] focus:border-[#0D99FF] transition-colors" />
+            className="w-full px-4 py-3 rounded-lg text-sm outline-none border-[1.5px] border-[#e5e5e5] focus:border-[#7C3AED] transition-colors" />
           <input value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()}
             placeholder="邮箱地址" type="email"
-            className="w-full px-4 py-3 rounded-lg text-sm outline-none border-[1.5px] border-[#e5e5e5] focus:border-[#0D99FF] transition-colors" />
+            className="w-full px-4 py-3 rounded-lg text-sm outline-none border-[1.5px] border-[#e5e5e5] focus:border-[#7C3AED] transition-colors" />
           <button onClick={go} disabled={loading || !email.trim()}
-            className="w-full py-3 rounded-lg font-semibold text-sm text-white disabled:opacity-50 bg-[#0D99FF] hover:bg-[#0b85db]">
+            className="w-full py-3 rounded-lg font-semibold text-sm text-white disabled:opacity-50 bg-[#7C3AED] hover:bg-[#0b85db]">
             {loading ? '登录中...' : '继续'}
           </button>
         </div>

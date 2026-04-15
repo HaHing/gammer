@@ -8,10 +8,10 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-white text-[#1e1e1e]">
       <nav className="sticky top-0 z-50 flex items-center justify-between px-10 h-16 bg-white border-b border-[#e5e5e5]">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #F24E1E, #A259FF)' }}>G</div>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
           <span className="font-semibold text-lg tracking-tight">Gammer</span>
         </Link>
-        <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#0D99FF]">开始创建</Link>
+        <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#7C3AED]">开始创建</Link>
       </nav>
       <main className="max-w-5xl mx-auto px-10 py-10">
         <h1 className="text-3xl font-bold mb-10 tracking-[-0.02em]">模板库</h1>

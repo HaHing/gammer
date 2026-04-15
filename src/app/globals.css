@@ -10,9 +10,9 @@
   --text-2: #9CA3AF;
   --border-0: #E5E7EB;
   --border-1: #D1D5DB;
-  --accent: #0D99FF;
-  --accent-light: #E8F4FF;
-  --accent-dim: rgba(13, 153, 255, 0.08);
+  --accent: #7C3AED;
+  --accent-light: #EDE9FE;
+  --accent-dim: rgba(124, 58, 237, 0.08);
   --success: #059669;
   --warn: #D97706;
   --err: #DC2626;
@@ -77,8 +77,8 @@ body {
 }
 
 @keyframes step-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(13, 153, 255, 0.4); }
-  50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(13, 153, 255, 0); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); }
 }
 .step-active { animation: step-pulse 1.5s ease-in-out infinite; }
 

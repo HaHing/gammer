@@ -26,10 +26,10 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-white text-[#1e1e1e]">
       <nav className="sticky top-0 z-50 flex items-center justify-between px-10 h-16 bg-white border-b border-[#e5e5e5]">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #F24E1E, #A259FF)' }}>G</div>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
           <span className="font-semibold text-lg tracking-tight">Gammer</span>
         </Link>
-        <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#0D99FF]">+ 新建</Link>
+        <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#7C3AED]">+ 新建</Link>
       </nav>
       <main className="max-w-5xl mx-auto px-10 py-10">
         <section className="mb-12">
@@ -37,7 +37,7 @@ export default function DashboardPage() {
           {loading ? <p className="text-sm text-[#999]">加载中...</p> : projects.length === 0 ? (
             <div className="p-10 rounded-xl border border-[#e5e5e5] text-center">
               <p className="text-sm mb-4 text-[#666]">还没有项目</p>
-              <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#0D99FF] inline-block">创建第一个演示文稿</Link>
+              <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#7C3AED] inline-block">创建第一个演示文稿</Link>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-5">
@@ -55,7 +55,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              <Link href="/create" className="rounded-xl border-2 border-dashed border-[#e5e5e5] flex items-center justify-center aspect-[4/3] hover:border-[#0D99FF] transition-colors">
+              <Link href="/create" className="rounded-xl border-2 border-dashed border-[#e5e5e5] flex items-center justify-center aspect-[4/3] hover:border-[#7C3AED] transition-colors">
                 <span className="text-2xl text-[#999]">+</span>
               </Link>
             </div>

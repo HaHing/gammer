@@ -15,13 +15,13 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="sticky top-0 z-50 flex items-center justify-between px-10 h-16 bg-white border-b border-[#e5e5e5]">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #F24E1E, #A259FF)' }}>G</div>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>G</div>
           <span className="font-semibold text-lg tracking-tight">Gammer</span>
         </div>
         <div className="flex items-center gap-5">
           <a href="#templates" className="text-sm font-medium text-[#666] hover:text-[#1e1e1e]">模板</a>
           <a href="#examples" className="text-sm font-medium text-[#666] hover:text-[#1e1e1e]">示例</a>
-          <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#0D99FF] hover:bg-[#0b85db]">开始创建</Link>
+          <Link href="/create" className="text-sm font-semibold px-5 py-2.5 rounded-lg text-white bg-[#7C3AED] hover:bg-[#0b85db]">开始创建</Link>
         </div>
       </nav>
 
@@ -32,8 +32,8 @@ export default function LandingPage() {
         <div className="flex gap-3 w-full max-w-lg">
           <input value={topic} onChange={e => setTopic(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()}
             placeholder="输入演示主题，例如：2026 Q1 技术架构升级方案"
-            className="flex-1 px-4 py-3 rounded-lg text-sm outline-none border-[1.5px] border-[#e5e5e5] focus:border-[#0D99FF] transition-colors" />
-          <button onClick={go} className="px-6 py-3 rounded-lg font-semibold text-sm text-white shrink-0 bg-[#0D99FF] hover:bg-[#0b85db]">开始创建</button>
+            className="flex-1 px-4 py-3 rounded-lg text-sm outline-none border-[1.5px] border-[#e5e5e5] focus:border-[#7C3AED] transition-colors" />
+          <button onClick={go} className="px-6 py-3 rounded-lg font-semibold text-sm text-white shrink-0 bg-[#7C3AED] hover:bg-[#0b85db]">开始创建</button>
         </div>
       </section>
 
@@ -92,7 +92,7 @@ export default function LandingPage() {
       <section className="py-20 px-10 text-center">
         <h2 className="text-3xl font-bold mb-4 tracking-[-0.02em]">免费开始创建</h2>
         <p className="mb-6 text-[#666]">无需注册，立即体验 AI 演示文稿生成</p>
-        <Link href="/create" className="inline-block px-8 py-3 rounded-xl font-semibold text-white bg-[#0D99FF] hover:bg-[#0b85db]">开始创建 →</Link>
+        <Link href="/create" className="inline-block px-8 py-3 rounded-xl font-semibold text-white bg-[#7C3AED] hover:bg-[#0b85db]">开始创建 →</Link>
       </section>
 
       {/* Footer */}
