@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="public/globe.svg" alt="Gammer Logo" width="120" height="120">
+  <img src=<img width="124" height="45" alt="image" src="https://github.com/user-attachments/assets/b4e4560a-2f04-4220-aa03-34fac30a804a" />
+ alt="Gammer Logo" width="120" height="120">
 </p>
 
 <h1 align="center">Gammer</h1>
@@ -23,6 +24,8 @@
   <img src="https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
 </p>
+
+<img width="2547" height="1387" alt="d4c38f3ff8f82916b5974f259fc27610" src="https://github.com/user-attachments/assets/e512e795-23f0-4251-b702-89600b17c3fe" />
 
 ---
 
