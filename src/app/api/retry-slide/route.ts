@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropic, MODEL } from '@/lib/model';
 import type { SlideContent, StyleTheme } from '@/lib/types';
 import { safeParseJSON } from '@/lib/research-engine';
+import { auth } from '@/lib/auth';
 import { getCachedPreview, cachePreview } from '../generate/route';
+import { getQuotaStatus } from '@/lib/quota';
 
-const client = new Anthropic({
-  baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
-  apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-});
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = session.user.id;
+
   const { previewId, slideIndex, instruction, theme } = await req.json() as {
     previewId: string; slideIndex: number; instruction: string; theme: StyleTheme;
   };
 
   console.log(`[Retry] previewId=${previewId}, slide=${slideIndex}, instruction="${instruction}"`);
 
-  const slides = getCachedPreview(previewId);
+  const slides = getCachedPreview(previewId, userId);
   if (!slides) {
     console.log('[Retry] Cache miss — trying to reconstruct from request');
     // If cache expired, return specific error code so frontend can handle it
@@ -31,8 +33,8 @@ export async function POST(req: NextRequest) {
   const next = slideIndex < slides.length - 1 ? slides[slideIndex + 1] : null;
 
   try {
-    const res = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const res = await anthropic.messages.create({
+      model: MODEL,
       max_tokens: 4000,
       messages: [{
         role: 'user',
@@ -75,8 +77,8 @@ ${next ? `下一页标题: "${next.title}"` : '这是最后一页'}
       console.log(`[Retry] JSON parse failed. Raw (500): ${rawText.substring(0, 500)}`);
       // Retry: ask AI to output clean JSON
       try {
-        const fix = await client.messages.create({
-          model: 'claude-sonnet-4-20250514', max_tokens: 4000,
+        const fix = await anthropic.messages.create({
+          model: MODEL, max_tokens: 4000,
           messages: [{ role: 'user', content: `将以下内容转为有效JSON对象。第一个字符必须是{，不要代码块：\n${rawText.substring(0, 3000)}` }],
         });
         let fixText = '';
@@ -95,10 +97,11 @@ ${next ? `下一页标题: "${next.title}"` : '这是最后一页'}
 
     // Update the cached slides
     slides[slideIndex] = data;
-    cachePreview(previewId, slides);
+    cachePreview(previewId, userId, slides);
+    const quota = await getQuotaStatus(userId);
     console.log(`[Retry] ✓ Updated slide ${slideIndex}: "${data.title}" (${data.layout})`);
 
-    return NextResponse.json({ slide: data, slideIndex });
+    return NextResponse.json({ slide: data, slideIndex, quota });
   } catch (e) {
     console.error('[Retry] Failed:', (e as Error).message);
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

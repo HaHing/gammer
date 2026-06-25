@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     slides: project.slides ? JSON.parse(project.slides) : null,
     outline: project.outline ? JSON.parse(project.outline) : null,
     research: project.research ? JSON.parse(project.research) : null,
+    delivery: project.delivery ? JSON.parse(project.delivery) : null,
   });
 }
 
@@ -26,6 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.slides !== undefined) data.slides = JSON.stringify(body.slides);
   if (body.outline !== undefined) data.outline = JSON.stringify(body.outline);
   if (body.research !== undefined) data.research = JSON.stringify(body.research);
+  if (body.delivery !== undefined) data.delivery = JSON.stringify(body.delivery);
   if (body.score !== undefined) data.score = body.score;
   if (body.theme !== undefined) data.theme = body.theme;
   if (body.paletteIdx !== undefined) data.paletteIdx = body.paletteIdx;

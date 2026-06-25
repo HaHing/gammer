@@ -1,36 +1,253 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <img src="public/globe.svg" alt="Gammer Logo" width="120" height="120">
+</p>
 
-## Getting Started
+<h1 align="center">Gammer</h1>
 
-First, run the development server:
+<p align="center">
+  <strong>AI-Powered Presentation Engine</strong><br>
+  从主题到专业 PPTX，AI 研究引擎 + 自动生成
+</p>
+
+<p align="center">
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-how-it-works">How It Works</a> •
+  <a href="#-configuration">Configuration</a> •
+  <a href="#-roadmap">Roadmap</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.2-black?logo=next.js" alt="Next.js">
+  <img src="https://img.shields.io/badge/React-19-blue?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript" alt="TypeScript">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
+</p>
+
+---
+
+## 🌟 Features
+
+### 🧠 AI Research Engine
+- **Web Search Integration**: Claude's `web_search` tool for real-time data
+- **Multi-query Strategy**: 10+ targeted searches per topic
+- **Source Tracking**: Every data point linked to its source
+- **Knowledge Fallback**: Model knowledge when web search unavailable
+
+### 📊 Professional PPTX Output
+- **16 Layout Types**: metrics-grid, chart-focus, diagram, big-number, etc.
+- **13 Theme Styles**: Google, Amazon, Microsoft, Deloitte, PwC, Brand, Haio, etc.
+- **Smart Layout Selection**: AI auto-selects best layout for content
+- **Visual Rhythm Enforcement**: Prevents 3+ consecutive text-heavy slides
+
+### 🔄 Mermaid Diagram Rendering
+- **Flowchart Support**: `graph TD` and `graph LR` syntax
+- **Auto-layout**: Dagre-based automatic positioning
+- **PPTX Export**: Shapes + text, no image dependencies
+
+### ⚡ Modern Tech Stack
+- **Next.js 16** with App Router
+- **React 19** with Server Components
+- **Zustand** with undo/redo (50 steps)
+- **Prisma** with SQLite/PostgreSQL
+- **NextAuth v5** for authentication
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- Anthropic API key (Claude)
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/your-username/gammer.git
+cd gammer
+
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
+
+# Initialize database
+npx prisma db push
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🔧 How It Works
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐
+│   Topic     │───▶│   Outline    │───▶│   Slides    │
+│   Input     │    │   Research   │    │   Preview   │
+└─────────────┘    └──────────────┘    └─────────────┘
+                         │                    │
+                         ▼                    ▼
+                  ┌──────────────┐    ┌─────────────┐
+                  │  Web Search  │    │    PPTX     │
+                  │  10 queries  │    │   Export    │
+                  └──────────────┘    └─────────────┘
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3-Step Workflow
 
-## Deploy on Vercel
+1. **Topic → Outline**: AI generates structured outline with research
+2. **Outline → Slides**: Stream-based slide generation with real-time preview
+3. **Slides → PPTX**: Professional PowerPoint export with theme styling
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### AI Pipeline
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Phase | Duration | Output |
+|-------|----------|--------|
+| Research | 30-60s | Key stats, findings, sources |
+| Outline | 10-20s | Page titles, bullets, layouts |
+| Generation | 60-120s | Full slide content with metrics |
+| Quality Check | 5-10s | Visual rhythm, data validation |
+| PPTX Build | 5-10s | Binary .pptx file |
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AI_BACKEND` | Yes | `claude` or `gpt` |
+| `ANTHROPIC_API_KEY` | Yes* | Claude API key |
+| `DATABASE_URL` | Yes | SQLite or PostgreSQL URL |
+| `NEXTAUTH_SECRET` | Yes | Random string for JWT |
+| `NEXTAUTH_URL` | No | Your app URL (auto-detected) |
+
+\* Only required when `AI_BACKEND=claude` (recommended)
+
+### Theme Customization
+
+Add custom themes in `src/lib/themes.ts`:
+
+```typescript
+export const themes: Record<StyleTheme, ThemeConfig> = {
+  'my-brand': {
+    name: 'My Brand',
+    primary: '#1E40AF',
+    secondary: '#6B7280',
+    accent: '#F59E0B',
+    background: '#FFFFFF',
+    text: '#111827',
+    lightGray: '#F3F4F6',
+  },
+};
+```
+
+Add theme design in `src/lib/theme-design.ts`:
+
+```typescript
+'my-brand': {
+  coverStyle: 'left-block',
+  accentPosition: 'left-bar',
+  preferredLayouts: ['metrics-grid', 'chart-focus', 'two-column'],
+  // ... see theme-design.ts for full options
+},
+```
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/                # API routes (research, generate, export)
+│   ├── create/             # Main editor page
+│   ├── dashboard/          # Project list
+│   └── edit/[id]/          # Edit existing project
+├── components/
+│   ├── SlideRenderer.tsx   # Slide preview component
+│   ├── MermaidDiagram.tsx  # Mermaid rendering
+│   └── ...
+├── lib/
+│   ├── ai-generator.ts     # AI slide generation
+│   ├── research-engine.ts  # Web search + research
+│   ├── pptx-engine.ts      # PowerPoint rendering
+│   └── ...
+├── store/
+│   └── presentation.ts     # Zustand state with undo/redo
+└── types/
+    └── next-auth.d.ts      # Type extensions
+```
+
+---
+
+## 🗺️ Roadmap
+
+### v0.2 (Current)
+- [x] AI research engine
+- [x] 16 slide layouts
+- [x] 13 theme styles
+- [x] Mermaid diagram support
+- [x] Stream-based preview
+- [x] Undo/redo (50 steps)
+
+### v0.3 (Planned)
+- [ ] Image generation integration
+- [ ] Thumbnail navigation in editor
+- [ ] Bullet list editing
+- [ ] Export history with re-download
+
+### v0.4 (Future)
+- [ ] PostgreSQL support
+- [ ] Team collaboration
+- [ ] Template gallery
+- [ ] PDF export
+- [ ] Google Slides export
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [Anthropic](https://www.anthropic.com/) for Claude API
+- [pptxgenjs](https://gitbrent.github.io/PptxGenJS/) for PowerPoint generation
+- [Mermaid](https://mermaid.js.org/) for diagram syntax
+- [Zustand](https://zustand-demo.pmnd.rs/) for state management
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/your-username">Your Name</a>
+</p>

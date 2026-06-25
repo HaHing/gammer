@@ -1,13 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropic, MODEL } from './model';
 import type { PageCount, StyleTheme, SlideContent, SlideLayout, OutlineItem } from './types';
 import type { ResearchReport } from './research-engine';
 import { safeParseJSONArray } from './research-engine';
 import { themeDesigns } from './theme-design';
+import { retryAsync, getErrorMessage, isRetryableError } from './retry';
 
-const client = new Anthropic({
-  baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
-  apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-});
 
 const STYLE_GUIDES: Record<string, string> = {
   google: `Google风格：极简留白>40%，单一论点聚焦。大号数字+简短标签。#1A73E8蓝+#34A853绿+#EA4335红，白底。Sans-serif。图表简洁扁平。`,
@@ -21,7 +18,7 @@ const STYLE_GUIDES: Record<string, string> = {
 
 function getStructureGuide(pageCount: PageCount): string {
   const guides: Record<PageCount, string> = {
-    5: `5页精简：P1封面(必须配图) → P2核心问题(big-number/metrics-grid震撼开场) → P3解决方案(chart-focus/two-column) → P4数据验证(metrics-grid/chart-focus) → P5结论行动(summary)。每页信息密度极高，至少4个bullets或2个keyMetrics。`,
+    5: `5页精简：P1封面 → P2核心问题(big-number/metrics-grid震撼开场) → P3解决方案(chart-focus/two-column) → P4数据验证(metrics-grid/chart-focus) → P5结论行动(summary)。每页信息密度极高，至少4个bullets或2个keyMetrics。`,
     10: `10页标准：P1封面 → P2目录 → P3-4现状与问题 → P5-6方案与论证 → P7-8数据与对比 → P9总结 → P10行动。完整论证链，每个论点有数据支撑。`,
     15: `15页详细：P1封面 → P2目录 → P3执行摘要 → P4-6现状深度分析 → P7-9方案详述 → P10-11数据验证 → P12路线图 → P13风险 → P14总结 → P15行动。每维度2-3页。`,
     20: `20页深度：P1封面 → P2目录 → P3执行摘要 → P4-7全面现状 → P8-12方案多维论证 → P13-15数据对比 → P16架构/路线图 → P17-18风险应对 → P19总结 → P20行动。多维度深度分析。`,
@@ -79,7 +76,8 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - 关键数据高亮 → highlight（1个核心数据+解读）
 - 架构/流程/关系/网络拓扑 → diagram（AI生成SVG图表）
 
-### diagram 布局 — 必须积极使用！
+### diagram 布局 — Mermaid 流程图语法
+
 ⚠️ 重要：当内容涉及以下任何场景时，必须使用 diagram layout 而不是 full-text：
 - 系统架构（如 Agent架构、微服务架构、技术栈）
 - 业务流程（如用户注册流程、审批流程、数据处理管线）
@@ -88,13 +86,83 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - 决策树、状态机
 - 任何包含"→"箭头、层级关系、节点连接的内容
 
-当 layout 为 "diagram" 时，必须提供 diagramDescription 字段：
-- diagramDescription：用结构化自然语言描述，用→分隔节点，例如"用户输入请求→协调者Agent→分发给3个子Agent(数据检索/代码执行/内容生成)→结果聚合→输出"
-- bullets 中放补充说明（不超过3条），不要把架构描述放在 bullets 里
-- 每个演示文稿至少1-2页 diagram，展示核心架构或关键流程
+当 layout 为 "diagram" 时，必须提供 mermaidCode 字段（有效 Mermaid flowchart 语法）：
+
+生成规则：
+1. 层级/架构用 "graph TD"（自上而下），顺序流程用 "graph LR"（从左到右）
+2. 控制在 4-12 个节点（幻灯片可读性最佳范围），绝不超过15个
+3. 节点标签简洁：2-8个中文字 或 2-5个英文单词，不超过15字符
+4. 使用语义化形状：
+   - [文本] 流程步骤/处理（矩形）
+   - {文本} 判断/决策点（菱形）— 必须有2+条输出边
+   - ([文本]) 输入/输出（圆角矩形）
+   - ((文本)) 开始/结束（圆形）
+   - [(文本)] 数据库/存储（圆柱形）
+5. 分支路径必须用 |标签| 标注：B -->|是| C 和 B -->|否| D
+6. 多目标可用 & 语法：A --> B & C（A同时连接B和C）
+7. 8+个节点时用 subgraph 分组，每组3-5个节点
+8. 禁止 classDef/style/click 指令（样式由渲染引擎控制）
+9. 节点ID用简单字母数字（A, B, C1, apiGw 等），不用中文做ID
+10. 节点标签中不要使用括号()、引号""、竖线|等特殊字符
+
+### 方向选择指南
+- graph TD：适合层级架构、决策树、数据流向下（自上而下）
+- graph LR：适合业务流程、审批流程、管道处理（从左到右）
+- 如果图很宽（并行分支多），用 TD
+- 如果图很长（串行步骤多），用 LR
+
+### 图表设计原则
+- 每个判断节点{菱形}必须有≥2条标注的输出边
+- 起始/终止用 ((圆)) 或 ([圆角])，中间用 [矩形]
+- 关键路径用实线 -->，辅助路径用虚线 -.->
+- 数据库/存储用 [(圆柱)] 明确标识
+- 避免单线串联超过6个节点，适当分支或分组
+
+示例1（决策流程图）：
+graph TD
+  A([用户请求]) --> B{认证检查}
+  B -->|通过| C[API网关]
+  B -->|失败| D([返回401])
+  C --> E{权限校验}
+  E -->|有权限| F[业务服务]
+  E -->|无权限| G([返回403])
+  F --> H[(数据库)]
+  H --> I([返回结果])
+
+示例2（带分组的架构图）：
+graph LR
+  subgraph 前端 [前端层]
+    A[Web应用] --> B[API客户端]
+  end
+  subgraph 后端 [服务层]
+    C[网关] --> D[用户服务]
+    C --> E[订单服务]
+  end
+  B --> C
+  D --> F[(用户DB)]
+  E --> G[(订单DB)]
+
+示例3（并行分支）：
+graph TD
+  A([开始]) --> B{类型判断}
+  B -->|类型A| C[处理A] & D[记录日志]
+  B -->|类型B| E[处理B]
+  C --> F([完成])
+  D --> F
+  E --> F
+
+### ⚠️ 禁止以下写法（会导致解析失败）
+- 节点标签含括号：A[处理(核心)] ❌ → A[核心处理] ✅
+- 节点标签含竖线：A[A|B选择] ❌ → A[AB选择] ✅
+- 中文做节点ID：用户[用户名] ❌ → A[用户名] ✅
+- 缺少graph声明头：直接写 A --> B ❌ → graph TD\n  A --> B ✅
+
+同时提供 diagramDescription 一句话摘要作为辅助说明。
+bullets 中放补充说明（不超过3条），不要把架构描述放在 bullets 里。
+每个演示文稿至少1-2页 diagram，展示核心架构或关键流程。
 
 ❌ 错误做法：把架构描述写成一大段文字放在 full-text 的 bullets 里
-✅ 正确做法：用 diagram layout + diagramDescription 描述结构，bullets 放简短补充
+✅ 正确做法：用 diagram layout + mermaidCode 描述结构，bullets 放简短补充
 
 ## 商务设计规范
 - 字体：统一微软雅黑，仅用加粗/标准/细三种字重
@@ -115,8 +183,8 @@ full-text | metrics-grid | chart-focus | two-column | three-column | big-number 
 - insight：核心洞察一句话，必须含数据
 - source：数据来源机构名
 - notes：演讲者备注150-250字，含讲解要点和补充数据
-- diagramDescription：当layout为diagram时必填，用→分隔节点描述流程/架构
-- needsImage：始终false
+- diagramDescription：当layout为diagram时提供一句话摘要
+- mermaidCode：当layout为diagram时必填，有效Mermaid flowchart语法（graph TD/LR + 节点 + 边）
 
 ## 约束
 - 严格${pageCount}页，最后一页必须是summary/action
@@ -251,19 +319,39 @@ export async function generateWithAI(
 
   // Try up to 2 times
   for (let attempt = 0; attempt < 2; attempt++) {
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 30000,
-      system: buildSystemPrompt(theme, pageCount, outline),
-      messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
-    });
-
-    const res = await stream.finalMessage();
     let rawText = '';
-    for (const block of res.content) {
-      if (block.type === 'text') rawText += block.text;
+    let stopReason = 'unknown';
+    try {
+      const res = await retryAsync(
+        async () => {
+          return anthropic.messages.create({
+            model: MODEL,
+            max_tokens: 30000,
+            system: buildSystemPrompt(theme, pageCount, outline),
+            messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
+          });
+        },
+        {
+          attempts: 3,
+          baseDelayMs: 900,
+          onRetry: (error, retryAttempt, delayMs) => {
+            console.log(`[AI] API retry ${retryAttempt}/3 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+          },
+        }
+      );
+      stopReason = String(res.stop_reason ?? 'unknown');
+      for (const block of res.content) {
+        if (block.type === 'text') rawText += block.text;
+      }
+    } catch (e) {
+      console.error(`[AI] Attempt ${attempt + 1} request failed: ${getErrorMessage(e).substring(0, 200)}`);
+      if (attempt === 0) {
+        console.log('[AI] Retrying full generation...');
+        continue;
+      }
+      throw e;
     }
-    console.log(`[AI] Attempt ${attempt + 1}: ${rawText.length} chars, stop=${res.stop_reason}`);
+    console.log(`[AI] Attempt ${attempt + 1}: ${rawText.length} chars, stop=${stopReason}`);
     console.log(`[AI] First 200 chars: ${rawText.substring(0, 200)}`);
 
     const slides = safeParseJSONArray(rawText) as SlideContent[] | null;
@@ -331,9 +419,8 @@ export async function generateWithAI(
         last.type = 'summary';
       }
 
-      const imgCount = slides.filter(s => s.needsImage).length;
       const layouts = [...new Set(slides.map(s => s.layout))];
-      console.log(`[AI] ✓ ${slides.length} slides, ${imgCount} need images, ${layouts.length} layouts: ${layouts.join(', ')}`);
+      console.log(`[AI] ✓ ${slides.length} slides, ${layouts.length} layouts: ${layouts.join(', ')}`);
       return slides;
     }
 
@@ -359,9 +446,20 @@ function normalizeSlide(s: SlideContent, i: number, total: number): SlideContent
   if (s.chartData) s.chartData = s.chartData.filter(d => d.label && typeof d.value === 'number');
   if (s.chartType && !['bar', 'pie', 'doughnut', 'line'].includes(s.chartType)) delete s.chartType;
   if (s.tableData && (!s.tableData.headers?.length || !s.tableData.rows?.length)) delete s.tableData;
-  // For diagram layout: ensure diagramDescription is populated from bullets if missing
-  if (s.layout === 'diagram' && !s.diagramDescription && s.bullets?.length) {
-    s.diagramDescription = s.bullets.join('；');
+  // For diagram layout: validate mermaidCode, fallback to diagramDescription
+  if (s.layout === 'diagram') {
+    if (s.mermaidCode) {
+      // Validate: must have at least "graph" and "-->" or "---"
+      const hasMermaidStructure = /^(?:graph|flowchart)\s+/im.test(s.mermaidCode) && /-->|---/.test(s.mermaidCode);
+      if (!hasMermaidStructure) {
+        // Invalid mermaid, convert to diagramDescription fallback
+        if (!s.diagramDescription) s.diagramDescription = s.mermaidCode.replace(/^(?:graph|flowchart)\s+\w+\s*/im, '').replace(/\n/g, '→');
+        delete s.mermaidCode;
+      }
+    }
+    if (!s.mermaidCode && !s.diagramDescription && s.bullets?.length) {
+      s.diagramDescription = s.bullets.join('；');
+    }
   }
   if (s.source) {
     const official = /gartner|idc|mckinsey|bcg|forrester|statista|deloitte|pwc|kpmg|ey|bain|accenture|政府|统计局|财报|annual report|白皮书/i;
@@ -386,50 +484,88 @@ export async function generateSlidesStreaming(
   onSlide: (slide: SlideContent) => void,
   outline?: OutlineItem[]
 ): Promise<void> {
-  const stream = client.messages.stream({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 30000,
-    system: buildSystemPrompt(theme, pageCount, outline),
-    messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
-  });
+  const emittedSlides: SlideContent[] = [];
 
-  let buffer = '';
-  let emitted = 0;
-  let depth = 0;
-  let inStr = false;
-  let esc = false;
-  let objStart = -1;
-  let arrayStarted = false;
+  const emitSlide = (slide: SlideContent) => {
+    const idx = emittedSlides.length;
+    normalizeSlide(slide, idx, pageCount);
+    emittedSlides.push(slide);
+    onSlide(slide);
+  };
 
-  stream.on('text', (text) => {
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      buffer += ch;
-      const pos = buffer.length - 1;
+  const streamOnce = async (): Promise<void> => {
+    const stream = anthropic.messages.stream({
+      model: MODEL,
+      max_tokens: 30000,
+      system: buildSystemPrompt(theme, pageCount, outline),
+      messages: [{ role: 'user', content: buildUserPrompt(topic, description, pageCount, scenes, research) }],
+    });
 
-      if (esc) { esc = false; continue; }
-      if (ch === '\\' && inStr) { esc = true; continue; }
-      if (ch === '"') { inStr = !inStr; continue; }
-      if (inStr) continue;
+    let buffer = '';
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let objStart = -1;
+    let arrayStarted = false;
 
-      if (!arrayStarted && ch === '[') { arrayStarted = true; continue; }
-      if (ch === '{' && depth === 0) { objStart = pos; depth = 1; continue; }
-      if (ch === '{') { depth++; continue; }
-      if (ch === '}') {
-        depth--;
-        if (depth === 0 && objStart >= 0) {
-          const objStr = buffer.substring(objStart, pos + 1);
-          objStart = -1;
-          try {
-            const slide = JSON.parse(objStr) as SlideContent;
-            normalizeSlide(slide, emitted, pageCount);
-            onSlide(slide);
-            emitted++;
-          } catch { /* partial or malformed, skip */ }
+    stream.on('text', (text) => {
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        buffer += ch;
+        const pos = buffer.length - 1;
+
+        if (esc) { esc = false; continue; }
+        if (ch === '\\' && inStr) { esc = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+
+        if (!arrayStarted && ch === '[') { arrayStarted = true; continue; }
+        if (ch === '{' && depth === 0) { objStart = pos; depth = 1; continue; }
+        if (ch === '{') { depth++; continue; }
+        if (ch === '}') {
+          depth--;
+          if (depth === 0 && objStart >= 0) {
+            const objStr = buffer.substring(objStart, pos + 1);
+            objStart = -1;
+            try {
+              const slide = JSON.parse(objStr) as SlideContent;
+              emitSlide(slide);
+            } catch {
+              // partial or malformed, skip
+            }
+          }
         }
       }
-    }
-  });
+    });
 
-  await stream.finalMessage();
+    await stream.finalMessage();
+  };
+
+  try {
+    await retryAsync(
+      async () => streamOnce(),
+      {
+        attempts: 2,
+        baseDelayMs: 1100,
+        shouldRetry: (error) => emittedSlides.length === 0 && isRetryableError(error),
+        onRetry: (error, attempt, delayMs) => {
+          console.warn(`[AI] stream retry ${attempt}/2 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 140)}`);
+        },
+      }
+    );
+  } catch (streamError) {
+    console.warn(`[AI] stream failed, fallback to non-stream generation: ${getErrorMessage(streamError).substring(0, 180)}`);
+  }
+
+  if (emittedSlides.length < pageCount) {
+    console.log(`[AI] stream emitted ${emittedSlides.length}/${pageCount}, backfilling with non-stream response`);
+    const fullSlides = await generateWithAI(topic, description, pageCount, theme, scenes, research, outline);
+    for (let i = emittedSlides.length; i < Math.min(pageCount, fullSlides.length); i++) {
+      emitSlide({ ...fullSlides[i] });
+    }
+  }
+
+  while (emittedSlides.length < pageCount) {
+    emitSlide({ type: 'content', layout: 'full-text', title: `补充内容 ${emittedSlides.length + 1}`, bullets: ['待补充'], needsImage: false });
+  }
 }

@@ -2,6 +2,9 @@ import PptxGenJS from 'pptxgenjs';
 import type { SlideContent, StyleTheme, ThemeConfig } from './types';
 import { themes } from './themes';
 import { themeDesigns, ThemeDesign } from './theme-design';
+import { parseMermaidFlowchart } from './mermaid-parser';
+import { layoutFlowchart } from './mermaid-layout';
+import type { LayoutResult } from './mermaid-layout';
 
 // LAYOUT_WIDE = 13.33" x 7.5"
 const W = 13.33;
@@ -643,44 +646,409 @@ function renderTimeline(slide: PptxGenJS.Slide, content: SlideContent, theme: Th
   addFooter(slide, theme, design, pageNum, total);
 }
 
+// ─── draw.io XML → PptxGenJS native shapes ───
+
+interface DrawioCell {
+  id: string;
+  value: string;
+  isEdge: boolean;
+  isVertex: boolean;
+  style: string;
+  parent: string;
+  source: string;
+  target: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function stripHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+}
+
+function parseDrawioCells(xml: string): DrawioCell[] {
+  const cells: DrawioCell[] = [];
+  // Match both self-closing <mxCell .../> and <mxCell ...>...</mxCell>
+  const cellRegex = /<mxCell\s+([\s\S]*?)(?:\/>|>([\s\S]*?)<\/mxCell>)/g;
+  let m;
+  while ((m = cellRegex.exec(xml)) !== null) {
+    const attrs = m[1];
+    const inner = m[2] ?? '';
+    const id = attrs.match(/id="([^"]*?)"/)?.[1] ?? '';
+    if (id === '0' || id === '1') continue;
+    const rawValue = attrs.match(/value="([^"]*?)"/)?.[1] ?? '';
+    const value = stripHtml(rawValue);
+    const isEdge = /edge="1"/.test(attrs);
+    const isVertex = /vertex="1"/.test(attrs);
+    const style = attrs.match(/style="([^"]*?)"/)?.[1] ?? '';
+    const parent = attrs.match(/parent="([^"]*?)"/)?.[1] ?? '1';
+    const source = attrs.match(/source="([^"]*?)"/)?.[1] ?? '';
+    const target = attrs.match(/target="([^"]*?)"/)?.[1] ?? '';
+    // Parse geometry from inner content or inline attributes
+    const geo = inner.match(/<mxGeometry\s+([\s\S]*?)\/?>/) ?? inner.match(/<mxGeometry\s+([\s\S]*?)>[\s\S]*?<\/mxGeometry>/);
+    const geoAttrs = geo?.[1] ?? '';
+    const x = parseFloat(geoAttrs.match(/\bx="([^"]+)"/)?.[1] ?? '0');
+    const y = parseFloat(geoAttrs.match(/\by="([^"]+)"/)?.[1] ?? '0');
+    const w = parseFloat(geoAttrs.match(/\bwidth="([^"]+)"/)?.[1] ?? '0');
+    const h = parseFloat(geoAttrs.match(/\bheight="([^"]+)"/)?.[1] ?? '0');
+    cells.push({ id, value, isEdge, isVertex, style, parent, source, target, x, y, w, h });
+  }
+  return cells;
+}
+
+function renderDrawioPptx(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig) {
+  const primaryC = c(theme.primary);
+  const accentC = c(theme.accent);
+  const secondaryC = c(theme.secondary);
+  const textC = c(theme.text);
+  const lightC = c(theme.lightGray);
+
+  const cells = parseDrawioCells(content.drawioXml ?? '');
+  const vertices = cells.filter(c => c.isVertex && !c.isEdge);
+  const edges = cells.filter(c => c.isEdge);
+
+  if (vertices.length === 0) {
+    slide.addText('图表内容请在编辑器中查看', {
+      x: PAD, y: 3, w: CW, h: 1,
+      fontSize: 14, color: lightC, align: 'center', valign: 'middle',
+    });
+    return;
+  }
+
+  // Compute absolute positions (children are relative to parent)
+  const cellMap = new Map(cells.map(c => [c.id, c]));
+  function absPos(cell: DrawioCell): { x: number; y: number; w: number; h: number } {
+    let ax = cell.x, ay = cell.y;
+    let p = cell.parent;
+    while (p && p !== '1' && p !== '0') {
+      const pc = cellMap.get(p);
+      if (!pc) break;
+      ax += pc.x;
+      ay += pc.y;
+      p = pc.parent;
+    }
+    return { x: ax, y: ay, w: cell.w || 120, h: cell.h || 40 };
+  }
+
+  // Find bounding box of all vertices
+  const positions = vertices.map(v => absPos(v));
+  const minX = Math.min(...positions.map(p => p.x));
+  const minY = Math.min(...positions.map(p => p.y));
+  const maxX = Math.max(...positions.map(p => p.x + p.w));
+  const maxY = Math.max(...positions.map(p => p.y + p.h));
+  const srcW = maxX - minX || 1;
+  const srcH = maxY - minY || 1;
+
+  // Map to PPTX coordinates
+  const hasBullets = content.bullets && content.bullets.length > 0;
+  const dstX = PAD;
+  const dstY = 1.2;
+  const dstW = hasBullets ? CW * 0.55 : CW;
+  const dstH = MAX_Y - dstY - 0.4;
+  const scale = Math.min(dstW / srcW, dstH / srcH, 0.012); // cap scale to avoid giant shapes
+
+  function mapX(v: number) { return dstX + (v - minX) * scale; }
+  function mapY(v: number) { return dstY + (v - minY) * scale; }
+  function mapW(v: number) { return Math.max(v * scale, 0.3); }
+  function mapH(v: number) { return Math.max(v * scale, 0.2); }
+
+  // Separate containers (swimlanes) from leaf nodes
+  const childParents = new Set(vertices.map(v => v.parent));
+  const containers = vertices.filter(v => childParents.has(v.id));
+  const leafNodes = vertices.filter(v => !childParents.has(v.id));
+
+  // 1. Render containers (swimlanes) as dashed backgrounds
+  for (const ct of containers) {
+    const pos = absPos(ct);
+    const px = mapX(pos.x), py = mapY(pos.y), pw = mapW(pos.w), ph = mapH(pos.h);
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, {
+      x: px, y: py, w: pw, h: ph,
+      fill: { color: primaryC, transparency: 94 },
+      line: { color: primaryC, width: 0.5, dashType: 'dash' },
+      rectRadius: 0.06,
+    });
+    if (ct.value) {
+      slide.addText(ct.value, {
+        x: px + 0.05, y: py + 0.03, w: pw - 0.1, h: 0.2,
+        fontSize: 7, color: secondaryC, bold: true, fontFace: 'Microsoft YaHei',
+      });
+    }
+  }
+
+  // 2. Render edges
+  for (const edge of edges) {
+    const src = cellMap.get(edge.source);
+    const tgt = cellMap.get(edge.target);
+    if (!src || !tgt) continue;
+    const sp = absPos(src), tp = absPos(tgt);
+    const sx = mapX(sp.x) + mapW(sp.w) / 2;
+    const sy = mapY(sp.y) + mapH(sp.h) / 2;
+    const tx = mapX(tp.x) + mapW(tp.w) / 2;
+    const ty = mapY(tp.y) + mapH(tp.h) / 2;
+    slide.addShape('line' as PptxGenJS.ShapeType, {
+      x: sx, y: sy, w: tx - sx, h: ty - sy,
+      line: { color: secondaryC, width: 0.8, endArrowType: 'arrow' },
+    });
+    if (edge.value) {
+      const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+      const lw = Math.max(0.4, edge.value.length * 0.07 + 0.15);
+      slide.addText(edge.value, {
+        x: mx - lw / 2, y: my - 0.1, w: lw, h: 0.2,
+        fontSize: 6, color: secondaryC, align: 'center', valign: 'middle',
+        fontFace: 'Microsoft YaHei',
+      });
+    }
+  }
+
+  // 3. Render leaf nodes
+  for (const node of leafNodes) {
+    const pos = absPos(node);
+    const nx = mapX(pos.x), ny = mapY(pos.y), nw = mapW(pos.w), nh = mapH(pos.h);
+    const st = node.style;
+    const isDb = /shape=cylinder|shape=mxgraph\.flowchart\.database/i.test(st);
+    const isCloud = /ellipse|shape=cloud/i.test(st);
+    const isDecision = /rhombus/i.test(st);
+    const shapeType = isDb ? 'flowChartMagneticDisk' : isCloud ? 'flowChartConnector' : isDecision ? 'flowChartDecision' : 'roundRect';
+    const bg = isDb ? accentC : isDecision ? lightenHex(primaryC, 0.88) : 'FFFFFF';
+    const fg = isDb ? 'FFFFFF' : isDecision ? primaryC : textC;
+    const border = isDb ? accentC : primaryC;
+
+    slide.addShape(shapeType as PptxGenJS.ShapeType, {
+      x: nx, y: ny, w: nw, h: nh,
+      fill: { color: bg },
+      line: { color: border, width: 0.8 },
+      rectRadius: isDecision ? 0 : 0.05,
+      shadow: { type: 'outer', blur: 2, offset: 1, color: '00000015', opacity: 0.08 },
+    });
+    if (node.value) {
+      slide.addText(node.value, {
+        x: nx, y: ny, w: nw, h: nh,
+        fontSize: nw < 0.6 ? 6 : 8, color: fg, bold: true,
+        align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei', shrinkText: true,
+      });
+    }
+  }
+
+  // Right side: bullets
+  if (hasBullets && content.bullets) {
+    const bulletsX = PAD + CW * 0.58;
+    const bulletsW = CW * 0.42;
+    const bulletRows = content.bullets.map(b => ({
+      text: b,
+      options: { fontSize: 9, color: textC, bullet: { code: '25CF', color: primaryC }, breakLine: true },
+    }));
+    slide.addText(bulletRows as PptxGenJS.TextProps[], {
+      x: bulletsX, y: dstY, w: bulletsW, h: dstH,
+      valign: 'top', lineSpacingMultiple: 1.5,
+    });
+  }
+}
+
 function renderDiagramLayout(slide: PptxGenJS.Slide, content: SlideContent, theme: ThemeConfig) {
+  // draw.io XML: parse node labels → render as native process-flow + bullets
+  if (content.diagramType === 'drawio' && content.drawioXml) {
+    renderDrawioPptx(slide, content, theme);
+    return;
+  }
+
+  // Priority: mermaidCode > diagramDescription (legacy)
+  if (content.mermaidCode) {
+    const graph = parseMermaidFlowchart(content.mermaidCode);
+    if (graph.nodes.length > 1) {
+      const bounds = { x: PAD, y: 1.3, w: CW, h: MAX_Y - 1.3 - 0.5 };
+      const layout = layoutFlowchart(graph, bounds);
+      renderMermaidPptx(slide, layout, theme);
+      return;
+    }
+  }
+
+  // Legacy: "A → B → C" format
   if (content.diagramDescription) {
-    // Parse "A → B → C" into structured flowchart boxes
-    const nodes = content.diagramDescription.split(/[→➜⟶;；]/).map(s => s.replace(/^[：:]\s*/, '').trim()).filter(Boolean);
-    if (nodes.length > 1) {
-      const maxPerRow = Math.min(nodes.length, 5);
-      const rows = Math.ceil(nodes.length / maxPerRow);
-      const boxW = Math.min((CW - 0.3 * (maxPerRow - 1)) / maxPerRow, 2.2);
-      const arrowW = 0.3;
-      const totalW = nodes.length <= maxPerRow ? boxW * maxPerRow + arrowW * (maxPerRow - 1) : CW;
-      const startX = PAD + (CW - totalW) / 2;
-      for (let r = 0; r < rows; r++) {
-        const rowNodes = nodes.slice(r * maxPerRow, (r + 1) * maxPerRow);
-        const rowY = 1.5 + r * 1.8;
-        for (let i = 0; i < rowNodes.length; i++) {
-          const nx = startX + i * (boxW + arrowW);
-          const isFirst = r === 0 && i === 0;
-          const isLast = r === rows - 1 && i === rowNodes.length - 1;
-          const bg = isFirst ? c(theme.primary) : isLast ? c(theme.accent) : 'F3F4F6';
-          const fg = isFirst || isLast ? 'FFFFFF' : c(theme.primary);
-          slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: nx, y: rowY, w: boxW, h: 0.9, fill: { color: bg }, rectRadius: 0.1, line: { color: isFirst || isLast ? bg : c(theme.primary), width: 0.5, dashType: 'solid' } });
-          // Parse "Label(detail)" or "Label：detail"
-          const m = rowNodes[i].match(/^(.+?)[（(](.+?)[）)]$/) || rowNodes[i].match(/^(.{2,15})[：:](.+)$/);
-          if (m) {
-            slide.addText(m[1].trim(), { x: nx, y: rowY + 0.1, w: boxW, h: 0.4, fontSize: 10, color: fg, bold: true, align: 'center', fontFace: 'Microsoft YaHei' });
-            slide.addText(m[2].trim(), { x: nx, y: rowY + 0.45, w: boxW, h: 0.35, fontSize: 7, color: isFirst || isLast ? 'FFFFFFCC' : c(theme.secondary), align: 'center', fontFace: 'Microsoft YaHei' });
-          } else {
-            slide.addText(rowNodes[i], { x: nx, y: rowY, w: boxW, h: 0.9, fontSize: 10, color: fg, bold: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei', shrinkText: true });
-          }
-          // Arrow between nodes
-          if (i < rowNodes.length - 1) {
-            slide.addText('→', { x: nx + boxW, y: rowY, w: arrowW, h: 0.9, fontSize: 16, color: c(theme.secondary), align: 'center', valign: 'middle' });
-          }
+    renderLegacyDiagram(slide, content.diagramDescription, theme);
+  }
+}
+
+// ─── Mermaid → PptxGenJS native shapes ───
+function renderMermaidPptx(slide: PptxGenJS.Slide, layout: LayoutResult, theme: ThemeConfig) {
+  const primaryC = c(theme.primary);
+  const accentC = c(theme.accent);
+  const secondaryC = c(theme.secondary);
+  const textC = c(theme.text);
+  const lightC = c(theme.lightGray);
+  const MIN_NODE_W = 0.55;
+  const MIN_NODE_H = 0.32;
+
+  // Pre-compute a light tint of primary color (for diamond/decision nodes)
+  const primaryTint = lightenHex(primaryC, 0.88);
+
+  // 1. Render subgraph backgrounds
+  for (const sg of layout.subgraphs) {
+    slide.addShape('roundRect' as PptxGenJS.ShapeType, {
+      x: sg.x, y: sg.y, w: sg.w, h: sg.h,
+      fill: { color: primaryC, transparency: 92 },
+      line: { color: primaryC, width: 0.5, dashType: 'dash' },
+      rectRadius: 0.1,
+    });
+    slide.addText(sg.label, {
+      x: sg.x + 0.1, y: sg.y + 0.05, w: sg.w - 0.2, h: 0.22,
+      fontSize: 7, color: secondaryC, bold: true, fontFace: 'Microsoft YaHei',
+    });
+  }
+
+  // 2. Render edges (behind nodes) using dagre's computed control points
+  for (const edge of layout.edges) {
+    const pts = edge.points;
+    if (pts.length < 2) continue;
+
+    const dashType = edge.style === 'dotted' ? 'dash' : 'solid';
+    const lineW = edge.style === 'thick' ? 2.5 : 1.0;
+
+    // Draw polyline segments following dagre's control points
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const isLast = i === pts.length - 2;
+
+      slide.addShape('line' as PptxGenJS.ShapeType, {
+        x: p1.x, y: p1.y,
+        w: p2.x - p1.x, h: p2.y - p1.y,
+        line: {
+          color: secondaryC,
+          width: lineW,
+          dashType: dashType as 'solid' | 'dash',
+          endArrowType: isLast && edge.arrow ? 'arrow' : undefined,
+        },
+      });
+    }
+
+    // Edge label at midpoint with white background pill
+    if (edge.label) {
+      const midIdx = Math.floor(pts.length / 2);
+      const mid = pts.length % 2 === 0
+        ? { x: (pts[midIdx - 1].x + pts[midIdx].x) / 2, y: (pts[midIdx - 1].y + pts[midIdx].y) / 2 }
+        : pts[midIdx];
+      const labelW = Math.max(0.5, edge.label.length * 0.08 + 0.2);
+      slide.addShape('roundRect' as PptxGenJS.ShapeType, {
+        x: mid.x - labelW / 2, y: mid.y - 0.12, w: labelW, h: 0.24,
+        fill: { color: 'FFFFFF' },
+        line: { color: lightC, width: 0.3 },
+        rectRadius: 0.06,
+      });
+      slide.addText(edge.label, {
+        x: mid.x - labelW / 2, y: mid.y - 0.12, w: labelW, h: 0.24,
+        fontSize: 7, color: secondaryC, align: 'center', valign: 'middle',
+        fontFace: 'Microsoft YaHei',
+      });
+    }
+  }
+
+  // 3. Render nodes — color by shape semantics, not position
+  for (const node of layout.nodes) {
+    let bg: string, fg: string, border: string;
+
+    switch (node.shape) {
+      case 'circle':   // start/end terminals
+      case 'stadium':  // input/output
+        bg = primaryC; fg = 'FFFFFF'; border = primaryC;
+        break;
+      case 'diamond':  // decision point
+        bg = primaryTint; fg = primaryC; border = primaryC;
+        break;
+      case 'cylinder': // database/storage
+        bg = accentC; fg = 'FFFFFF'; border = accentC;
+        break;
+      case 'hexagon':  // preparation/special
+        bg = secondaryC; fg = 'FFFFFF'; border = secondaryC;
+        break;
+      default:         // rect, rounded — process steps
+        bg = 'F3F4F6'; fg = textC; border = primaryC;
+        break;
+    }
+
+    const drawW = Math.max(node.w, MIN_NODE_W);
+    const drawH = Math.max(node.h, MIN_NODE_H);
+    const nodeX = node.x - drawW / 2;
+    const nodeY = node.y - drawH / 2;
+    const shapeType = mapShapeToPptx(node.shape);
+
+    slide.addShape(shapeType as PptxGenJS.ShapeType, {
+      x: nodeX, y: nodeY, w: drawW, h: drawH,
+      fill: { color: bg },
+      line: { color: border, width: 1, dashType: 'solid' },
+      rectRadius: node.shape === 'rounded' || node.shape === 'stadium' ? 0.15 : 0.05,
+      shadow: { type: 'outer', blur: 3, offset: 1, color: '00000020', opacity: 0.12 },
+    });
+
+    slide.addText(node.label, {
+      x: nodeX, y: nodeY, w: drawW, h: drawH,
+      fontSize: drawW < 0.8 ? 6 : node.shape === 'diamond' ? 8 : 9,
+      color: fg, bold: true, align: 'center', valign: 'middle',
+      fontFace: 'Microsoft YaHei', shrinkText: true,
+    });
+  }
+}
+
+// Lighten a 6-digit hex color toward white by a given factor (0 = original, 1 = white)
+function lightenHex(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const lr = Math.round(r + (255 - r) * factor);
+  const lg = Math.round(g + (255 - g) * factor);
+  const lb = Math.round(b + (255 - b) * factor);
+  return [lr, lg, lb].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function mapShapeToPptx(shape: string): string {
+  switch (shape) {
+    case 'diamond': return 'flowChartDecision';
+    case 'circle': return 'flowChartConnector';
+    case 'stadium': return 'flowChartTerminator';
+    case 'hexagon': return 'flowChartPreparation';
+    case 'cylinder': return 'flowChartMagneticDisk';
+    case 'rounded': return 'flowChartAlternateProcess';
+    case 'rect':
+    default: return 'flowChartProcess';
+  }
+}
+
+// ─── Legacy diagram renderer (A → B → C format) ───
+function renderLegacyDiagram(slide: PptxGenJS.Slide, description: string, theme: ThemeConfig) {
+  const nodes = description.split(/[→➜⟶;；]/).map(s => s.replace(/^[：:]\s*/, '').trim()).filter(Boolean);
+  if (nodes.length > 1) {
+    const maxPerRow = Math.min(nodes.length, 5);
+    const rows = Math.ceil(nodes.length / maxPerRow);
+    const boxW = Math.min((CW - 0.3 * (maxPerRow - 1)) / maxPerRow, 2.2);
+    const arrowW = 0.3;
+    const totalW = nodes.length <= maxPerRow ? boxW * maxPerRow + arrowW * (maxPerRow - 1) : CW;
+    const startX = PAD + (CW - totalW) / 2;
+    for (let r = 0; r < rows; r++) {
+      const rowNodes = nodes.slice(r * maxPerRow, (r + 1) * maxPerRow);
+      const rowY = 1.5 + r * 1.8;
+      for (let i = 0; i < rowNodes.length; i++) {
+        const nx = startX + i * (boxW + arrowW);
+        const isFirst = r === 0 && i === 0;
+        const isLast = r === rows - 1 && i === rowNodes.length - 1;
+        const bg = isFirst ? c(theme.primary) : isLast ? c(theme.accent) : 'F3F4F6';
+        const fg = isFirst || isLast ? 'FFFFFF' : c(theme.primary);
+        slide.addShape('roundRect' as PptxGenJS.ShapeType, { x: nx, y: rowY, w: boxW, h: 0.9, fill: { color: bg }, rectRadius: 0.1, line: { color: isFirst || isLast ? bg : c(theme.primary), width: 0.5, dashType: 'solid' } });
+        const m = rowNodes[i].match(/^(.+?)[（(](.+?)[）)]$/) || rowNodes[i].match(/^(.{2,15})[：:](.+)$/);
+        if (m) {
+          slide.addText(m[1].trim(), { x: nx, y: rowY + 0.1, w: boxW, h: 0.4, fontSize: 10, color: fg, bold: true, align: 'center', fontFace: 'Microsoft YaHei' });
+          slide.addText(m[2].trim(), { x: nx, y: rowY + 0.45, w: boxW, h: 0.35, fontSize: 7, color: isFirst || isLast ? 'FFFFFFCC' : c(theme.secondary), align: 'center', fontFace: 'Microsoft YaHei' });
+        } else {
+          slide.addText(rowNodes[i], { x: nx, y: rowY, w: boxW, h: 0.9, fontSize: 10, color: fg, bold: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei', shrinkText: true });
+        }
+        if (i < rowNodes.length - 1) {
+          slide.addText('→', { x: nx + boxW, y: rowY, w: arrowW, h: 0.9, fontSize: 16, color: c(theme.secondary), align: 'center', valign: 'middle' });
         }
       }
-    } else {
-      slide.addText(`📐 ${content.diagramDescription}`, { x: PAD, y: 2.5, w: CW, h: 2, fontSize: 14, color: c(theme.secondary), italic: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei' });
     }
+  } else {
+    slide.addText(`📐 ${description}`, { x: PAD, y: 2.5, w: CW, h: 2, fontSize: 14, color: c(theme.secondary), italic: true, align: 'center', valign: 'middle', fontFace: 'Microsoft YaHei' });
   }
 }
 
@@ -705,16 +1073,6 @@ export async function generatePptx(slides: SlideContent[], themeKey: StyleTheme,
     // Render source on slide footer area
     if (content.source && content.type !== 'cover') {
       slide.addText(`📎 ${content.source}`, { x: PAD, y: 6.7, w: CW - 1.5, h: 0.3, fontSize: 7, color: c(theme.secondary), italic: true, fontFace: 'Microsoft YaHei' });
-    }
-    // Embed image if available
-    if (content.imageUrl && content.imageUrl.startsWith('data:')) {
-      if (content.type === 'cover') {
-        // Cover: full background image with low opacity overlay
-        slide.addImage({ data: content.imageUrl, x: 0, y: 0, w: '100%', h: '100%', transparency: 80 });
-      } else if (!content.chartData?.length && !content.tableData?.headers?.length) {
-        // Content slides without charts/tables: small image in bottom-right
-        slide.addImage({ data: content.imageUrl, x: CW - 2.5, y: 5.0, w: 2.5, h: 1.5, rounding: true });
-      }
     }
     switch (content.type) {
       case 'cover': renderCover(slide, content, theme, design); break;

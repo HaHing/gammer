@@ -5,11 +5,43 @@ import type { ResearchReport } from '@/lib/research-engine';
 import { generateSlidesStreaming } from '@/lib/ai-generator';
 import { checkQuality } from '@/lib/quality-checker';
 import { optimizeSlides } from '@/lib/self-optimizer';
-import { generateImages } from '@/lib/image-generator';
+import { buildDeliveryPackage } from '@/lib/delivery-package';
 import { cachePreview } from '../generate/route';
 import { getCachedResearch } from '../outline/route';
+import { auth } from '@/lib/auth';
+import { QuotaExceededError, ensureQuotaForPages, consumeQuotaPages, getQuotaStatus } from '@/lib/quota';
+
+function normalizeUserFacingErrorMessage(rawMessage: string): { message: string; code?: string; retryable?: boolean } {
+  const msg = rawMessage || 'Generation failed';
+
+  if (/invalid\s+`.*prisma|unknown field\s+`?(role|pagequota|pageused)`?/i.test(msg)) {
+    return {
+      message: '服务配置正在热更新，请刷新页面后重试；如果仍失败，请重启服务。',
+      code: 'SERVER_SCHEMA_MISMATCH',
+      retryable: true,
+    };
+  }
+
+  if (/(429|too many requests|rate limit|response\.failed|timed out|timeout|503|502|504|overloaded)/i.test(msg)) {
+    return {
+      message: `模型服务繁忙（可重试）：${msg}. 建议等待10-20秒后重试。`,
+      retryable: true,
+    };
+  }
+
+  return { message: msg };
+}
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response('event: error\ndata: {"message":"Unauthorized"}\n\n', {
+      status: 401,
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+    });
+  }
+  const userId = session.user.id;
+
   const { topic, description, pageCount, theme, scenes, outline, researchId } = await req.json() as {
     topic: string; description: string; pageCount: PageCount; theme: StyleTheme; scenes: string;
     outline?: OutlineItem[]; researchId?: string;
@@ -23,10 +55,11 @@ export async function POST(req: NextRequest) {
       };
 
       try {
+        await ensureQuotaForPages(userId, pageCount);
         // Phase 1: Research — reuse cached or conduct new
         send('status', { phase: 'research', message: '正在搜索权威数据源...' });
         send('log', { text: `🔍 开始研究主题: "${topic}"` });
-        let research = researchId ? getCachedResearch(researchId) ?? null : null;
+        let research = researchId ? getCachedResearch(researchId, userId) ?? null : null;
 
         if (!research) {
           const outlineContext = outline ? outline.map(o => o.title).join('，') : '';
@@ -56,6 +89,7 @@ export async function POST(req: NextRequest) {
           keyStats: research.keyStats,
           findingsCount: research.results[0]?.findings?.length || 0,
           sourcesCount: new Set(research.results.flatMap(r => r.findings.map(f => f.source))).size,
+          topSources: [...new Set(research.results.flatMap(r => r.findings.map(f => f.source)))].slice(0, 8),
         });
         const sources = [...new Set(research.results.flatMap(r => r.findings.map(f => f.source)))].slice(0, 5);
         sources.forEach(s => send('log', { text: `📊 数据来源: ${s}` }));
@@ -93,23 +127,29 @@ export async function POST(req: NextRequest) {
           score = recheck.score;
         }
 
+        await consumeQuotaPages(userId, slides.length || pageCount);
+        const quota = await getQuotaStatus(userId);
         const previewId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-        // Phase 4: Image generation
-        send('status', { phase: 'images', message: '生成配图中...' });
-        send('log', { text: '🎨 开始生成配图...' });
-        await generateImages(slides, (i, total) => {
-          send('log', { text: `🖼️ 配图 ${i + 1}/${total}...` });
+        const delivery = buildDeliveryPackage({
+          topic,
+          theme,
+          pageCount,
+          slides,
+          issues,
+          score,
+          research,
         });
-        const imgCount = slides.filter(s => s.imageUrl).length;
-        if (imgCount > 0) send('log', { text: `✓ 生成 ${imgCount} 张配图` });
-        else send('log', { text: '⚠️ 配图跳过（未配置 GOOGLE_API_KEY 或 API 不可用）' });
 
-        cachePreview(previewId, slides);
+        cachePreview(previewId, userId, slides);
         send('log', { text: `🎉 生成完成! ${slides.length} 页, 质量评分 ${score}分` });
-        send('done', { previewId, slides, issues, score });
+        send('done', { previewId, slides, issues, score, delivery, quota });
       } catch (e) {
-        send('error', { message: (e as Error).message || 'Generation failed' });
+        if (e instanceof QuotaExceededError) {
+          send('error', { message: e.message, code: 'QUOTA_EXCEEDED', quota: e.detail });
+          return;
+        }
+        const normalized = normalizeUserFacingErrorMessage((e as Error).message || 'Generation failed');
+        send('error', normalized);
       } finally {
         controller.close();
       }

@@ -1,10 +1,4 @@
-import type { SlideContent } from './types';
-
-interface QualityIssue {
-  page: number;
-  issue: string;
-  severity: 'error' | 'warning';
-}
+import type { SlideContent, QualityIssue } from './types';
 
 export function checkQuality(slides: SlideContent[]): { issues: QualityIssue[]; score: number } {
   const issues: QualityIssue[] = [];

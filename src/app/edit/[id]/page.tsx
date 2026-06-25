@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { SlideContent, StyleTheme, ThemeConfig } from '@/lib/types';
+import type { SlideContent, StyleTheme, ThemeConfig, DiagramMode } from '@/lib/types';
 import { themes } from '@/lib/themes';
 import SlideRenderer from '@/components/SlideRenderer';
+import DiagramModeSelector from '@/components/DiagramModeSelector';
+import DiagramVersionPanel from '@/components/DiagramVersionPanel';
+import UserMenuFab from '@/components/UserMenuFab';
 
 interface ProjectData {
   id: string;
@@ -24,6 +27,8 @@ export default function EditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<'slide' | 'card'>('slide');
+  const [diagramPrompt, setDiagramPrompt] = useState('');
+  const [diagramLoading, setDiagramLoading] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -48,12 +53,77 @@ export default function EditPage() {
     }, 3000);
   }, [id]);
 
-  const updateSlide = (i: number, slide: SlideContent) => {
-    const next = [...slides];
-    next[i] = slide;
-    setSlides(next);
-    autoSave(next);
-  };
+  const updateSlide = useCallback((i: number, slide: SlideContent) => {
+    setSlides(prev => {
+      const next = [...prev];
+      next[i] = slide;
+      autoSave(next);
+      return next;
+    });
+  }, [autoSave]);
+
+  const saveVersion = useCallback(async (slideIndex: number, xml: string, label?: string) => {
+    await fetch('/api/diagram/versions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: id, slideIndex, xml, label }),
+    });
+  }, [id]);
+
+  const handleDiagramAI = useCallback(async (slideIndex: number, prompt: string) => {
+    const slide = slides[slideIndex];
+    if (!slide) return;
+    setDiagramLoading(true);
+    const endpoint = slide.drawioXml ? '/api/diagram/edit' : '/api/diagram/generate';
+    const body = slide.drawioXml
+      ? { currentXml: slide.drawioXml, instruction: prompt }
+      : { prompt, mode: slide.diagramMode ?? 'flowchart' };
+
+    try {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (data.xml) {
+        const updated: SlideContent = {
+          ...slide,
+          diagramType: 'drawio',
+          drawioXml: data.xml,
+          ...(data.bullets?.length ? { bullets: data.bullets } : {}),
+          ...(data.title ? { title: data.title } : {}),
+        };
+        setSlides(prev => {
+          const next = [...prev];
+          next[slideIndex] = updated;
+          autoSave(next);
+          return next;
+        });
+        saveVersion(slideIndex, data.xml, prompt.slice(0, 40));
+      }
+    } finally {
+      setDiagramLoading(false);
+      setDiagramPrompt('');
+    }
+  }, [slides, autoSave, saveVersion]);
+
+  const addDiagramSlide = useCallback(() => {
+    const newSlide: SlideContent = {
+      type: 'architecture',
+      layout: 'diagram',
+      title: '新建图表',
+      diagramType: 'drawio',
+      diagramMode: 'architecture',
+      drawioXml: '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>',
+    };
+    setSlides(prev => {
+      const next = [...prev, newSlide];
+      autoSave(next);
+      setTimeout(() => setActive(next.length - 1), 0);
+      return next;
+    });
+  }, [autoSave]);
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-0, #ffffff)', color: 'var(--text-0, #1e1e1e)' }}>
@@ -72,6 +142,8 @@ export default function EditPage() {
 
   const themeKey = (project.theme || 'brand') as StyleTheme;
   const themeConfig: ThemeConfig = themes[themeKey] || themes.brand;
+  const activeSlide = slides[active];
+  const isDiagramSlide = activeSlide?.layout === 'diagram';
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-0, #ffffff)', color: 'var(--text-0, #1e1e1e)' }}>
@@ -89,12 +161,15 @@ export default function EditPage() {
           </div>
           <button onClick={() => router.push(`/present/${id}`)} className="text-sm px-3 py-1.5 rounded-lg hover:opacity-80" style={{ background: 'var(--bg-2, #eee)', color: 'var(--text-0, #1e1e1e)' }}>▶ 演示</button>
           <span className="text-[10px]" style={{ color: 'var(--text-2, #666)' }}>{slides.length} 页</span>
+          <div className="w-[1px] h-6 mx-1" style={{ background: 'var(--border-0, #ddd)' }} />
+          <UserMenuFab />
         </div>
       </header>
 
       <div className="flex" style={{ height: 'calc(100vh - 49px)' }}>
         {/* Thumbnail Nav */}
-        <div className="w-48 overflow-y-auto border-r p-2 space-y-2 shrink-0" style={{ borderColor: 'var(--border-0, #222)', background: 'var(--bg-1, #111)' }}>
+        <div className="w-48 flex flex-col border-r shrink-0" style={{ borderColor: 'var(--border-0, #222)', background: 'var(--bg-1, #111)' }}>
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {slides.map((s, i) => (
             <div key={i} onClick={() => setActive(i)}
               className={`cursor-pointer rounded-lg overflow-hidden transition-all ${active === i ? 'ring-2 ring-purple-500' : 'hover:ring-1 hover:ring-gray-600'}`}>
@@ -102,11 +177,22 @@ export default function EditPage() {
                 <span>{i + 1}</span>
                 <span className="truncate ml-1">{s.title?.slice(0, 12)}</span>
               </div>
-              <div className="pointer-events-none scale-[0.25] origin-top-left" style={{ width: 400, height: 225 }}>
-                <SlideRenderer slide={s} theme={themeConfig} themeKey={themeKey} pageNum={i + 1} total={slides.length} />
+              <div className="pointer-events-none overflow-hidden" style={{ width: 100, height: 56.25 }}>
+                <div className="scale-[0.25] origin-top-left" style={{ width: 400, height: 225 }}>
+                  <SlideRenderer slide={s} theme={themeConfig} themeKey={themeKey} pageNum={i + 1} total={slides.length} />
+                </div>
               </div>
             </div>
           ))}
+          </div>
+          {/* 新建图表按钮 — 固定在左侧栏底部 */}
+          <div className="p-2 border-t" style={{ borderColor: 'var(--border-0, #2a2a2a)' }}>
+            <button onClick={addDiagramSlide}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90"
+              style={{ background: 'var(--accent)', color: '#fff' }}>
+              <span className="text-sm">⬡</span> 新建图表
+            </button>
+          </div>
         </div>
 
         {/* Main Canvas */}
@@ -123,6 +209,52 @@ export default function EditPage() {
             ))}
           </div>
         </div>
+
+        {/* Diagram Panel — appears when active slide is a diagram */}
+        {isDiagramSlide && (
+          <div className="w-72 shrink-0 overflow-y-auto border-l p-4 space-y-4" style={{ borderColor: 'var(--border-0, #222)', background: 'var(--bg-1, #f9fafb)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-1)' }}>图表设置</p>
+
+            {/* Mode selector */}
+            <DiagramModeSelector
+              value={(activeSlide.diagramMode as DiagramMode) ?? 'flowchart'}
+              onChange={mode => updateSlide(active, { ...activeSlide, diagramMode: mode, diagramType: 'drawio' })}
+            />
+
+            {/* AI prompt */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium" style={{ color: 'var(--text-1)' }}>AI 生成/优化</p>
+              <textarea
+                className="input text-xs px-3 py-2 resize-none"
+                rows={3}
+                placeholder={activeSlide.drawioXml ? '描述修改内容，例如：把第一步拆成两个步骤' : '描述你想要的图表，例如：用户注册流程'}
+                value={diagramPrompt}
+                onChange={e => setDiagramPrompt(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !diagramLoading && diagramPrompt.trim()) {
+                    handleDiagramAI(active, diagramPrompt);
+                  }
+                }}
+                disabled={diagramLoading}
+              />
+              <button
+                className="btn-primary text-xs px-4 py-2 w-full"
+                disabled={diagramLoading || !diagramPrompt.trim()}
+                onClick={() => handleDiagramAI(active, diagramPrompt)}
+              >
+                {diagramLoading ? '生成中…' : activeSlide.drawioXml ? '⬡ 优化图表' : '⬡ 生成图表'}
+              </button>
+            </div>
+
+            <div className="border-t pt-4" style={{ borderColor: 'var(--border-0)' }}>
+              <DiagramVersionPanel
+                projectId={id}
+                slideIndex={active}
+                onRestore={xml => updateSlide(active, { ...activeSlide, drawioXml: xml, diagramType: 'drawio' })}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -190,11 +322,22 @@ function CardEditor({ slide, index, active, onSelect, onUpdate }: {
         </div>
       )}
       {slide.layout === 'diagram' && (
-        <div>
-          <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>📐 图表描述</span>
-          <textarea value={slide.diagramDescription || ''} onChange={e => onUpdate({ ...slide, diagramDescription: e.target.value })}
-            className="w-full text-[12px] px-3 py-1.5 rounded-lg outline-none mt-0.5 resize-none" rows={2}
-            style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }} placeholder="用自然语言描述图表，如：用户注册流程：输入手机号→验证→创建账户" />
+        <div className="flex flex-col gap-2">
+          <div>
+            <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>📐 Mermaid 流程图</span>
+            <textarea value={slide.mermaidCode || ''} onChange={e => onUpdate({ ...slide, mermaidCode: e.target.value })}
+              className="w-full text-[11px] px-3 py-1.5 rounded-lg outline-none mt-0.5 resize-none font-mono"
+              rows={6}
+              style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }}
+              placeholder={'graph TD\n  A([开始]) --> B{判断}\n  B -->|是| C[处理]\n  B -->|否| D[结束]'} />
+          </div>
+          <div>
+            <span className="text-[10px] font-medium" style={{ color: 'var(--text-2, #666)' }}>一句话描述（辅助）</span>
+            <input value={slide.diagramDescription || ''} onChange={e => onUpdate({ ...slide, diagramDescription: e.target.value })}
+              className="w-full text-[12px] px-3 py-1 rounded-lg outline-none mt-0.5"
+              style={{ background: 'var(--bg-1, #f9fafb)', border: '1px solid var(--border-0, #e5e7eb)' }}
+              placeholder="用户注册流程：输入手机号→验证→创建账户" />
+          </div>
         </div>
       )}
     </div>

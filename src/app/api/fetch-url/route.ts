@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropic, MODEL } from '@/lib/model';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import { retryAsync, getErrorMessage } from '@/lib/retry';
+import { auth } from '@/lib/auth';
 
 const execFileAsync = promisify(execFile);
 
-const client = new Anthropic({
-  baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
-  apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-});
 
 const FETCH_SCRIPT = path.join(process.env.HOME || '~', '.kiro/skills/web-content-fetcher/scripts/fetch.py');
 const STEALTH_DOMAINS = ['mp.weixin.qq.com', 'zhuanlan.zhihu.com', 'juejin.cn'];
@@ -38,6 +36,9 @@ async function fetchFallback(url: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { urls, topic } = await req.json() as { urls: string[]; topic?: string };
   const rawTexts: string[] = [];
 
@@ -52,12 +53,13 @@ export async function POST(req: NextRequest) {
 
   // AI analysis: extract structured insights as prompt-ready description
   try {
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
-      messages: [{
-        role: 'user',
-        content: `分析以下网页内容，提取与"${topic || '演示文稿'}"相关的关键信息，输出结构化的描述文本。
+    const res = await retryAsync(
+      async () => anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `分析以下网页内容，提取与"${topic || '演示文稿'}"相关的关键信息，输出结构化的描述文本。
 
 ## 网页内容
 ${rawTexts.join('\n---\n')}
@@ -73,9 +75,16 @@ ${rawTexts.join('\n---\n')}
 - 数据1
 - 数据2
 可能的结论方向：一句话`
-      }],
-    });
-    const res = await stream.finalMessage();
+        }],
+      }),
+      {
+        attempts: 3,
+        baseDelayMs: 900,
+        onRetry: (error, attempt, delayMs) => {
+          console.warn(`[FetchURL] summarize retry ${attempt}/3 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
     let summary = '';
     for (const block of res.content) { if (block.type === 'text') summary += block.text; }
     return NextResponse.json({ texts: rawTexts, summary: summary.trim() });

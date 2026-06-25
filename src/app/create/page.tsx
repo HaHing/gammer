@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
+import { useState, useRef, useCallback, useEffect, Suspense, useSyncExternalStore } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import type { PageCount, StyleTheme, SlideContent, ThemeConfig, OutlineItem } from '@/lib/types';
 import { layoutPresets } from '@/lib/layouts';
 import { templates } from '@/data/templates';
 import { themes } from '@/lib/themes';
 import SlideRenderer from '@/components/SlideRenderer';
+import UserMenuFab from '@/components/UserMenuFab';
 import { usePresentationStore, type PreviewResponse } from '@/store/presentation';
 
 const PAGE_OPTIONS: PageCount[] = [5, 10, 15, 20, 25];
@@ -77,40 +78,47 @@ const THEME_PALETTES: Record<StyleTheme, { primary: string; accent: string; labe
     { primary: '#0F2B46', accent: '#2D8B6F', label: '蓝绿搭' },
     { primary: '#1E3A5F', accent: '#2A7AB5', label: '商务蓝' },
   ],
-  anchnet: [
+  'tech-blue': [
     { primary: '#1B3A6B', accent: '#00B4D8', label: '科技蓝' },
     { primary: '#1B3A6B', accent: '#00C9A7', label: '蓝绿搭' },
     { primary: '#1B3A6B', accent: '#E8963C', label: '蓝橙搭' },
     { primary: '#0D4F5C', accent: '#00B4D8', label: '青蓝搭' },
     { primary: '#1B3A6B', accent: '#6B8CAE', label: '蓝灰搭' },
   ],
-  'anchnet-teal': [
+  'tech-teal': [
     { primary: '#0D4F5C', accent: '#00C9A7', label: '青翠' },
     { primary: '#0D4F5C', accent: '#00B4D8', label: '青蓝搭' },
     { primary: '#0D4F5C', accent: '#E8963C', label: '青橙搭' },
     { primary: '#1A5C5C', accent: '#00C9A7', label: '深青绿' },
     { primary: '#0D4F5C', accent: '#5B8A94', label: '青灰搭' },
   ],
-  'anchnet-dark': [
+  'tech-dark': [
     { primary: '#0A1E3D', accent: '#2E9BDB', label: '深邃蓝' },
     { primary: '#0A1E3D', accent: '#00C9A7', label: '深蓝绿' },
     { primary: '#0A1E3D', accent: '#C8963E', label: '深蓝金' },
     { primary: '#0F2847', accent: '#2E9BDB', label: '藏青蓝' },
     { primary: '#0A1E3D', accent: '#4A6580', label: '深蓝灰' },
   ],
-  'anchnet-gradient': [
+  'tech-gradient': [
     { primary: '#1A4B8C', accent: '#00D4AA', label: '蓝绿渐变' },
     { primary: '#1A4B8C', accent: '#00B4D8', label: '蓝青搭' },
     { primary: '#1A4B8C', accent: '#E8963C', label: '蓝橙搭' },
     { primary: '#0D6B5E', accent: '#00D4AA', label: '绿渐变' },
     { primary: '#1A4B8C', accent: '#6B8CAE', label: '蓝灰搭' },
   ],
-  'anchnet-warm': [
+  'tech-warm': [
     { primary: '#2C4A7C', accent: '#E8963C', label: '暖蓝橙' },
     { primary: '#2C4A7C', accent: '#C8963E', label: '蓝金搭' },
     { primary: '#2C4A7C', accent: '#00B4D8', label: '暖蓝青' },
     { primary: '#2C4A7C', accent: '#7A8FA5', label: '暖蓝灰' },
     { primary: '#3A5A8C', accent: '#E8963C', label: '亮蓝橙' },
+  ],
+  'brand-red': [
+    { primary: '#D3013C', accent: '#767474', label: '红灰搭' },
+    { primary: '#D3013C', accent: '#44546A', label: '红藏青' },
+    { primary: '#D3013C', accent: '#7A87A1', label: '红蓝灰' },
+    { primary: '#D3013C', accent: '#D0D0D0', label: '红银搭' },
+    { primary: '#D3013C', accent: '#DD3564', label: '双红搭' },
   ],
 };
 
@@ -122,11 +130,12 @@ const THEMES: { key: StyleTheme; name: string; dot: string; icon: string }[] = [
   { key: 'pwc', name: '暖色', dot: '#4A2C1A', icon: 'P' },
   { key: 'brand', name: '品牌', dot: '#2D1B69', icon: '✦' },
   { key: 'haio', name: '极简', dot: '#0F2B46', icon: 'H' },
-  { key: 'anchnet', name: '安畅蓝', dot: '#1B3A6B', icon: '☁' },
-  { key: 'anchnet-teal', name: '安畅青', dot: '#0D4F5C', icon: '☁' },
-  { key: 'anchnet-dark', name: '安畅深', dot: '#0A1E3D', icon: '☁' },
-  { key: 'anchnet-gradient', name: '安畅渐变', dot: '#1A4B8C', icon: '☁' },
-  { key: 'anchnet-warm', name: '安畅暖', dot: '#2C4A7C', icon: '☁' },
+  { key: 'tech-blue', name: '科技蓝', dot: '#1B3A6B', icon: '◈' },
+  { key: 'tech-teal', name: '科技青', dot: '#0D4F5C', icon: '◈' },
+  { key: 'tech-dark', name: '深邃蓝', dot: '#0A1E3D', icon: '◈' },
+  { key: 'tech-gradient', name: '渐变', dot: '#1A4B8C', icon: '◈' },
+  { key: 'tech-warm', name: '暖蓝', dot: '#2C4A7C', icon: '◈' },
+  { key: 'brand-red', name: '品牌红', dot: '#D3013C', icon: '◆' },
 ];
 
 const SCENES = [
@@ -139,6 +148,47 @@ const TYPE_LABEL: Record<string, string> = {
   comparison: '对比', timeline: '时间线', architecture: '架构',
   summary: '总结', action: '行动', appendix: '附录',
 };
+
+interface QuotaStatus {
+  total: number;
+  used: number;
+  remaining: number;
+}
+
+function asQuotaStatus(value: unknown): QuotaStatus | null {
+  if (!value || typeof value !== 'object') return null;
+  const rec = value as Record<string, unknown>;
+  const total = typeof rec.total === 'number' && Number.isFinite(rec.total) ? Math.max(0, Math.floor(rec.total)) : null;
+  const used = typeof rec.used === 'number' && Number.isFinite(rec.used) ? Math.max(0, Math.floor(rec.used)) : null;
+  const remaining = typeof rec.remaining === 'number' && Number.isFinite(rec.remaining) ? Math.max(0, Math.floor(rec.remaining)) : null;
+  if (total === null || used === null || remaining === null) return null;
+  return { total, used, remaining };
+}
+
+function getQuotaExceededMessage(payload: unknown, fallback = '配额不足，请联系管理员扩容'): string {
+  if (!payload || typeof payload !== 'object') return fallback;
+  const rec = payload as Record<string, unknown>;
+  const quota = asQuotaStatus(rec.quota ?? rec);
+  const requested = typeof rec.requested === 'number' && Number.isFinite(rec.requested)
+    ? Math.max(0, Math.floor(rec.requested))
+    : null;
+
+  if (quota) {
+    return `配额不足：剩余 ${quota.remaining} 页${requested !== null ? `，本次需要 ${requested} 页` : ''}。请联系管理员扩容。`;
+  }
+  if (typeof rec.error === 'string' && rec.error.trim()) return rec.error;
+  if (typeof rec.message === 'string' && rec.message.trim()) return rec.message;
+  return fallback;
+}
+
+function normalizePreviewErrorMessage(message: string): string {
+  const msg = message?.trim() || '请重试';
+  if (/invalid\s+`.*prisma|unknown field\s+`?(role|pagequota|pageused)`?/i.test(msg)) {
+    return '服务配置正在热更新，请刷新页面后重试；如果仍失败，请重启服务。';
+  }
+  if (msg.length > 180) return `${msg.slice(0, 180)}...`;
+  return msg;
+}
 
 export default function CreatePage() {
   return <Suspense><HomeInner /></Suspense>;
@@ -162,8 +212,8 @@ function HomeInner() {
 
   // Zundo temporal for undo/redo
   const temporalStore = usePresentationStore.temporal;
-  const canUndo = temporalStore.getState().pastStates.length > 0;
-  const canRedo = temporalStore.getState().futureStates.length > 0;
+  const canUndo = useSyncExternalStore(temporalStore.subscribe, () => temporalStore.getState().pastStates.length > 0, () => false);
+  const canRedo = useSyncExternalStore(temporalStore.subscribe, () => temporalStore.getState().futureStates.length > 0, () => false);
   const undo = () => temporalStore.getState().undo();
   const redo = () => temporalStore.getState().redo();
 
@@ -196,10 +246,38 @@ function HomeInner() {
   const palette = THEME_PALETTES[theme][paletteIdx] || THEME_PALETTES[theme][0];
   const currentTheme: ThemeConfig = { ...themes[theme], primary: palette.primary, accent: palette.accent };
   const progressPhase = usePresentationStore(s => s.phase);
+  const [quota, setQuota] = useState<QuotaStatus | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(true);
+
+  const applyQuota = useCallback((value: unknown) => {
+    const next = asQuotaStatus(value);
+    if (next) setQuota(next);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/quota', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) applyQuota(data);
+      } catch {
+        // Ignore transient quota fetch errors on load
+      } finally {
+        if (!cancelled) setQuotaLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [applyQuota]);
 
   // A1: Generate outline first
   const handleOutline = async () => {
     if (!topic.trim()) return;
+    if (quotaBlockedForCurrentPageCount) {
+      alert(`配额不足：当前剩余 ${quota?.remaining ?? 0} 页，无法创建 ${pageCount} 页内容。`);
+      return;
+    }
     setOutlineLoading(true); setOutline(null); setPreviewData(null);
     try {
       const res = await fetch('/api/outline', {
@@ -207,10 +285,15 @@ function HomeInner() {
         body: JSON.stringify({ topic, description: description + (lang === 'en' ? '\n\n[LANGUAGE: Generate all content in English]' : ''), pageCount, theme, scenes }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `大纲生成失败 (${res.status})`);
+        const err = await res.json().catch(() => ({} as Record<string, unknown>));
+        applyQuota((err as Record<string, unknown>).quota ?? err);
+        if ((err as Record<string, unknown>).code === 'QUOTA_EXCEEDED') {
+          throw new Error(getQuotaExceededMessage(err));
+        }
+        throw new Error((err as { error?: string }).error || `大纲生成失败 (${res.status})`);
       }
       const data = await res.json();
+      applyQuota(data.quota ?? data);
       setOutline(data.outline);
       setResearchId(data.researchId);
       setOutlineResearch(data.research);
@@ -221,7 +304,16 @@ function HomeInner() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, outline: data.outline, research: data.research }),
           });
-          if (saveRes.ok) { const { id } = await saveRes.json(); setProjectId(id); }
+          if (saveRes.ok) {
+            const { id } = await saveRes.json();
+            setProjectId(id);
+          } else {
+            const saveErr = await saveRes.json().catch(() => ({} as Record<string, unknown>));
+            applyQuota((saveErr as Record<string, unknown>).quota ?? saveErr);
+            if ((saveErr as Record<string, unknown>).code === 'QUOTA_EXCEEDED') {
+              throw new Error(getQuotaExceededMessage(saveErr));
+            }
+          }
         } catch {}
       } else {
         autoSave({ title: topic, outline: data.outline, research: data.research });
@@ -233,6 +325,10 @@ function HomeInner() {
   // A3: Generate from confirmed outline
   const handlePreview = async () => {
     if (!topic.trim()) return;
+    if (quotaBlockedForCurrentPageCount) {
+      alert(`配额不足：当前剩余 ${quota?.remaining ?? 0} 页，无法生成 ${pageCount} 页内容。`);
+      return;
+    }
     setPreviewing(true); setPreviewData(null); setActiveSlide(0);
     setPreviewStatus('搜索数据中...'); setPhase('research'); setSlidesDone(0); clearTaskLogs();
     try {
@@ -240,7 +336,15 @@ function HomeInner() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, description: description + (lang === 'en' ? '\n\n[LANGUAGE: Generate all content in English]' : ''), pageCount, theme, scenes, outline, researchId }),
       });
-      if (!res.ok || !res.body) throw new Error();
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        const payload = err as Record<string, unknown>;
+        applyQuota(payload.quota ?? payload);
+        if (payload.code === 'QUOTA_EXCEEDED') {
+          throw new Error(getQuotaExceededMessage(payload));
+        }
+        throw new Error((typeof payload.error === 'string' && payload.error) ? payload.error : `生成失败 (${res.status})`);
+      }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
@@ -260,21 +364,22 @@ function HomeInner() {
             else if (eventType === 'research') { streamResearch = data; setPhase('generating'); }
             else if (eventType === 'slide') {
               streamSlides.push(data.slide); setSlidesDone(streamSlides.length);
-              setPreviewData({ previewId: previewData?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch });
+              setPreviewData({ previewId: previewData?.previewId || '', slides: [...streamSlides], issues: [], score: 0, research: streamResearch, delivery: undefined });
             } else if (eventType === 'done') {
+              applyQuota(data.quota ?? data);
               setPreviewData({ ...data, research: streamResearch }); setPhase('done');
               // Auto-save to database
               try {
                 if (projectId) {
                   await fetch(`/api/projects/${projectId}`, {
                     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ slides: data.slides, score: data.score, research: streamResearch }),
+                    body: JSON.stringify({ slides: data.slides, score: data.score, research: streamResearch, delivery: data.delivery }),
                   });
                   setTimeout(() => router.push(`/edit/${projectId}`), 1500);
                 } else {
                   const saveRes = await fetch('/api/projects', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, slides: data.slides, outline, research: streamResearch, score: data.score }),
+                    body: JSON.stringify({ title: topic, description, theme, paletteIdx, pageCount, lang, scenes, slides: data.slides, outline, research: streamResearch, score: data.score, delivery: data.delivery }),
                   });
                   if (saveRes.ok) {
                     const { id } = await saveRes.json();
@@ -284,12 +389,20 @@ function HomeInner() {
                 }
               } catch {}
             }
-            else if (eventType === 'error') { throw new Error(data.message); }
+            else if (eventType === 'error') {
+              applyQuota(data.quota ?? data);
+              if (data.code === 'QUOTA_EXCEEDED') {
+                throw new Error(getQuotaExceededMessage(data));
+              }
+              throw new Error(data.message || '生成失败');
+            }
             else if (eventType === 'log') { addTaskLog(data.text); }
           }
         }
       }
-    } catch (e) { if (!previewData) alert(`生成失败: ${(e as Error).message || '请重试'}`); }
+    } catch (e) {
+      if (!previewData) alert(`生成失败: ${normalizePreviewErrorMessage((e as Error).message || '请重试')}`);
+    }
     finally { setPreviewing(false); setPreviewStatus(''); setPhase('idle'); }
   };
 
@@ -299,18 +412,27 @@ function HomeInner() {
     try {
       const res = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, description, pageCount, theme, scenes, previewId: previewData?.previewId }),
+        body: JSON.stringify({ topic, description, pageCount, theme, scenes, previewId: previewData?.previewId, projectId }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const payload = err as Record<string, unknown>;
+        applyQuota(payload.quota ?? payload);
+        if (payload.code === 'QUOTA_EXCEEDED') {
+          throw new Error(getQuotaExceededMessage(payload));
+        }
+        throw new Error((typeof payload.error === 'string' && payload.error) ? payload.error : `下载失败 (${res.status})`);
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `${topic}.pptx`; a.click();
       URL.revokeObjectURL(url);
-    } catch { alert('生成失败'); }
+    } catch (e) { alert((e as Error).message || '生成失败'); }
     finally { setLoading(false); }
   };
 
   const busy = loading || previewing || outlineLoading;
+  const quotaBlockedForCurrentPageCount = Boolean(!quotaLoading && quota && quota.remaining < pageCount);
 
   const hasContent = !!(previewData || outline || outlineLoading || previewing);
 
@@ -347,21 +469,39 @@ function HomeInner() {
             })}
           </div>
           {/* Right: Actions */}
-          <div className="flex items-center gap-2">
-            {previewData && <>
-              <button onClick={undo} disabled={!canUndo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20" title="撤销">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <div className="flex items-center gap-3">
+            <div
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px]"
+              style={{
+                borderColor: quota && quota.remaining <= 0 ? '#FECACA' : 'var(--border-0)',
+                background: quota && quota.remaining <= 0 ? '#FEF2F2' : 'var(--bg-1)',
+                color: quota && quota.remaining <= 0 ? '#B42318' : 'var(--text-1)',
+              }}
+              title="当前页数额度"
+            >
+              <span>配额</span>
+              <span className="font-semibold tabular-nums">
+                {quotaLoading ? '--' : `${quota?.remaining ?? 0}/${quota?.total ?? 0} 页`}
+              </span>
+            </div>
+            <UserMenuFab />
+            <div className="w-[1px] h-6" style={{ background: 'var(--border-0)' }} />
+            <div className="flex items-center gap-2">
+              {previewData && <>
+                <button onClick={undo} disabled={!canUndo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20" title="撤销">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                </button>
+                <button onClick={redo} disabled={!canRedo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20" title="重做">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+                <div className="w-[1px] h-5 mx-1" style={{ background: 'var(--border-0)' }} />
+                <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{activeSlide + 1} / {previewData.slides.length}</span>
+                <div className="w-[1px] h-5 mx-1" style={{ background: 'var(--border-0)' }} />
+              </>}
+              <button onClick={handleGenerate} disabled={!previewData || busy} className="btn-primary h-9 px-4 text-[12px] flex items-center gap-1.5 disabled:opacity-30">
+                {Icon.download} 下载 PPTX
               </button>
-              <button onClick={redo} disabled={!canRedo} className="btn-ghost w-8 h-8 flex items-center justify-center disabled:opacity-20" title="重做">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              </button>
-              <div className="w-[1px] h-5 mx-1" style={{ background: 'var(--border-0)' }} />
-              <span className="text-[11px] tabular-nums font-medium" style={{ color: 'var(--text-2)' }}>{activeSlide + 1} / {previewData.slides.length}</span>
-              <div className="w-[1px] h-5 mx-1" style={{ background: 'var(--border-0)' }} />
-            </>}
-            <button onClick={handleGenerate} disabled={!previewData || busy} className="btn-primary h-9 px-4 text-[12px] flex items-center gap-1.5 disabled:opacity-30">
-              {Icon.download} 下载 PPTX
-            </button>
+            </div>
           </div>
         </div>
       </header>
@@ -426,6 +566,12 @@ function HomeInner() {
                   </button>
                 ))}
               </div>
+              {quota && (
+                <p className="text-[11px] mt-1.5" style={{ color: quota.remaining < pageCount ? '#B42318' : 'var(--text-2)' }}>
+                  剩余可生成 {quota.remaining} 页
+                  {quota.remaining < pageCount ? `，当前选择 ${pageCount} 页会超额` : ''}
+                </p>
+              )}
               <div className="flex gap-1.5 mt-2">
                 {(['zh', 'en'] as const).map(l => (
                   <button key={l} onClick={() => setLang(l)}
@@ -510,15 +656,20 @@ function HomeInner() {
 
           {/* Actions */}
           <div className="space-y-2.5 pt-4 border-t" style={{ borderColor: 'var(--border-0)' }}>
-            <button onClick={handleOutline} disabled={!topic.trim() || busy}
+            <button onClick={handleOutline} disabled={!topic.trim() || busy || quotaBlockedForCurrentPageCount}
               className={`w-full h-11 text-[13px] flex items-center justify-center gap-2 disabled:opacity-30 rounded-[var(--radius-md)] font-semibold transition-all ${outline ? 'btn-ghost' : 'btn-secondary'}`}>
               {Icon.search}
               {outlineLoading ? <span className="animate-pulse-slow">大纲生成中...</span> : outline ? '重新生成大纲' : '① 生成大纲'}
             </button>
-            <button onClick={handlePreview} disabled={!topic.trim() || busy || !outline}
+            <button onClick={handlePreview} disabled={!topic.trim() || busy || !outline || quotaBlockedForCurrentPageCount}
               className="btn-primary w-full h-11 text-[13px] flex items-center justify-center gap-2 disabled:opacity-30">
               {previewing ? <span className="animate-pulse-slow">{previewStatus || '处理中...'}</span> : '② 确认生成'}
             </button>
+            {quotaBlockedForCurrentPageCount && (
+              <p className="text-[11px]" style={{ color: '#B42318' }}>
+                当前选择 {pageCount} 页，超出剩余配额 {quota?.remaining ?? 0} 页，请先降低页数或联系管理员扩容。
+              </p>
+            )}
           </div>
         </div>
         </div>
@@ -560,6 +711,7 @@ function HomeInner() {
               theme={currentTheme} themeKey={theme} loading={loading} onGenerate={handleGenerate} busy={busy} accent={palette.primary}
               onSlideUpdate={(i, sl) => { store.updateSlide(i, sl); autoSave({ slides: store.previewData?.slides }); }}
               onSlidesReplace={sl => { store.replaceSlides(sl); autoSave({ slides: sl }); }}
+              onQuotaUpdate={applyQuota}
               canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
           ) : outline && !outlineLoading && !previewing ? (
             <div className="h-full px-8 py-6">
@@ -670,18 +822,26 @@ function Progress({ phase, done, total, accent }: { phase: string; done: number;
 }
 
 /* ── Slide Gallery: Full-width vertical scroll ── */
-function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent, canUndo, canRedo, onUndo, onRedo }: {
+function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGenerate, busy, onSlideUpdate, onSlidesReplace, accent, onQuotaUpdate, canUndo, canRedo, onUndo, onRedo }: {
   data: PreviewResponse; active: number; setActive: (n: number) => void;
   theme: ThemeConfig; themeKey: StyleTheme; loading: boolean; onGenerate: () => void; busy: boolean; accent: string;
   onSlideUpdate: (i: number, s: SlideContent) => void; onSlidesReplace: (s: SlideContent[]) => void;
+  onQuotaUpdate?: (value: unknown) => void;
   canUndo: boolean; canRedo: boolean; onUndo: () => void; onRedo: () => void;
 }) {
-  const { slides, issues, score, research } = data;
+  const { slides, issues, score, research, delivery } = data;
   const [retryInput, setRetryInput] = useState('');
   const [retrying, setRetrying] = useState(false);
   const [globalInput, setGlobalInput] = useState('');
   const [globalEditing, setGlobalEditing] = useState(false);
   const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomed(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [zoomed]);
 
   const handleRetry = async () => {
     if (!retryInput.trim() || retrying) return;
@@ -690,7 +850,15 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
       const res = await fetch('/api/retry-slide', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ previewId: data.previewId, slideIndex: active, instruction: retryInput, theme: themeKey }) });
       const json = await res.json();
-      if (!res.ok) { alert(json.expired ? '缓存过期，请重新预览' : `失败: ${json.error || res.status}`); return; }
+      onQuotaUpdate?.(json.quota ?? json);
+      if (!res.ok) {
+        if (json.code === 'QUOTA_EXCEEDED') {
+          alert(getQuotaExceededMessage(json));
+          return;
+        }
+        alert(json.expired ? '缓存过期，请重新预览' : `失败: ${json.error || res.status}`);
+        return;
+      }
       if (json.slide) { onSlideUpdate(active, json.slide); setRetryInput(''); }
     } catch (e) { alert((e as Error).message); }
     finally { setRetrying(false); }
@@ -763,6 +931,49 @@ function SlideGallery({ data, active, setActive, theme, themeKey, loading, onGen
       {research?.summary && (
         <div className="max-w-[900px] mx-auto mb-4 p-3 rounded-xl text-[11px] leading-relaxed" style={{ background: `${accent}06`, border: `1px solid ${accent}15`, color: 'var(--text-1)' }}>
           {research.summary}
+        </div>
+      )}
+
+      {delivery && (
+        <div className="max-w-[900px] mx-auto mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-0)', border: '1px solid var(--border-0)' }}>
+          <div className="flex items-center gap-2 flex-wrap mb-2.5">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>交付摘要</span>
+            <span className="text-[11px] px-2 py-0.5 rounded-md"
+              style={{
+                background: delivery.diagnosis.riskLevel === 'high' ? '#FEF2F2' : delivery.diagnosis.riskLevel === 'medium' ? '#FFFBEB' : '#ECFDF5',
+                color: delivery.diagnosis.riskLevel === 'high' ? '#B42318' : delivery.diagnosis.riskLevel === 'medium' ? 'var(--warn)' : 'var(--success)',
+              }}>
+              风险: {delivery.diagnosis.riskLevel === 'high' ? '高' : delivery.diagnosis.riskLevel === 'medium' ? '中' : '低'}
+            </span>
+            <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>
+              证据源 {delivery.evidence.sourceCount} 个
+            </span>
+            <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>
+              指标 {delivery.evidence.keyStatsCount} 个
+            </span>
+            <span className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>
+              发现 {delivery.evidence.findingsCount} 条
+            </span>
+          </div>
+          <p className="text-[12px] mb-2" style={{ color: 'var(--text-1)' }}>{delivery.diagnosis.summary}</p>
+          {delivery.diagnosis.topIssues.length > 0 && (
+            <div className="mb-2">
+              {delivery.diagnosis.topIssues.slice(0, 3).map((iss, idx) => (
+                <p key={`${iss.page}-${idx}`} className="text-[11px]" style={{ color: iss.severity === 'error' ? '#B42318' : 'var(--warn)' }}>
+                  P{iss.page}: {iss.issue}
+                </p>
+              ))}
+            </div>
+          )}
+          {delivery.recommendations.length > 0 && (
+            <div className="space-y-1">
+              {delivery.recommendations.slice(0, 3).map((rec) => (
+                <p key={rec.id} className="text-[11px]" style={{ color: 'var(--text-1)' }}>
+                  [{rec.priority.toUpperCase()}] {rec.action}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

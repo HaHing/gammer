@@ -1,5 +1,5 @@
 export type PageCount = 5 | 10 | 15 | 20 | 25;
-export type StyleTheme = 'google' | 'amazon' | 'microsoft' | 'deloitte' | 'pwc' | 'brand' | 'haio' | 'anchnet' | 'anchnet-teal' | 'anchnet-dark' | 'anchnet-gradient' | 'anchnet-warm';
+export type StyleTheme = 'google' | 'amazon' | 'microsoft' | 'deloitte' | 'pwc' | 'brand' | 'haio' | 'tech-blue' | 'tech-teal' | 'tech-dark' | 'tech-gradient' | 'tech-warm' | 'brand-red';
 
 export interface ThemeConfig {
   name: string;
@@ -14,6 +14,7 @@ export interface ThemeConfig {
 
 export type SlideType = 'cover' | 'toc' | 'content' | 'data' | 'comparison' | 'timeline' | 'architecture' | 'summary' | 'action' | 'appendix';
 export type SlideLayout = 'full-text' | 'text-left-image-right' | 'image-left-text-right' | 'metrics-grid' | 'chart-focus' | 'two-column' | 'three-column' | 'big-number' | 'quote-highlight' | 'table-focus' | 'icon-grid' | 'process-flow' | 'funnel' | 'pyramid' | 'problem-solution' | 'highlight' | 'diagram';
+export type DiagramMode = 'flowchart' | 'sequence' | 'architecture' | 'er' | 'mindmap' | 'network' | 'orgchart';
 
 
 export interface KeyMetric {
@@ -51,9 +52,50 @@ export interface SlideContent {
   sourceType?: 'official' | 'research' | 'inferred'; // C2: data provenance
   notes?: string;
   needsImage?: boolean;
-  imageUrl?: string; // base64 data URL or remote URL
-  imagePrompt?: string; // prompt used to generate the image
   diagramDescription?: string; // natural language description for diagram rendering
+  mermaidCode?: string; // Mermaid flowchart syntax for rich diagram rendering
+  drawioXml?: string;          // mxGraph XML for draw.io diagram
+  diagramType?: 'mermaid' | 'drawio'; // which renderer to use
+  diagramMode?: DiagramMode;   // template / style hint for AI
   tableData?: { headers: string[]; rows: string[][] };
   designNotes?: string;
+}
+
+export interface QualityIssue {
+  page: number;
+  issue: string;
+  severity: 'error' | 'warning';
+}
+
+export interface DeliveryRecommendation {
+  id: string;
+  priority: 'p0' | 'p1' | 'p2';
+  action: string;
+  reason: string;
+}
+
+export interface DeliveryPackage {
+  version: 'v1';
+  generatedAt: string;
+  score: number;
+  diagnosis: {
+    riskLevel: 'low' | 'medium' | 'high';
+    errorCount: number;
+    warningCount: number;
+    topIssues: QualityIssue[];
+    summary: string;
+  };
+  evidence: {
+    keyStatsCount: number;
+    findingsCount: number;
+    sourceCount: number;
+    topSources: string[];
+  };
+  recommendations: DeliveryRecommendation[];
+  meta: {
+    topic: string;
+    pageCount: number;
+    slideCount: number;
+    theme: StyleTheme;
+  };
 }

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import type { PageCount, StyleTheme, SlideContent, OutlineItem } from '@/lib/types';
+import type { DeliveryPackage, PageCount, StyleTheme, SlideContent, OutlineItem } from '@/lib/types';
 
 export interface ResearchData {
   summary: string;
   keyStats: { metric: string; value: string; source: string }[];
   findingsCount?: number;
   sourcesCount?: number;
+  topSources?: string[];
 }
 
 export interface PreviewResponse {
@@ -15,6 +16,7 @@ export interface PreviewResponse {
   issues: { page: number; issue: string; severity: string }[];
   score: number;
   research?: ResearchData;
+  delivery?: DeliveryPackage;
 }
 
 type Phase = 'idle' | 'outline' | 'research' | 'generating' | 'checking' | 'optimizing' | 'done';
@@ -41,7 +43,6 @@ interface PresentationState {
 
   // UI
   phase: Phase;
-  progress: number;
   previewStatus: string;
   slidesDone: number;
   taskLogs: string[];
@@ -99,7 +100,6 @@ const initialState = {
   previewData: null,
   activeSlide: 0,
   phase: 'idle' as Phase,
-  progress: 0,
   previewStatus: '',
   slidesDone: 0,
   taskLogs: [] as string[],

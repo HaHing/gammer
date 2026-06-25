@@ -125,7 +125,7 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     preferredLayouts: ['metrics-grid', 'table-focus', 'two-column', 'chart-focus', 'process-flow'],
     metricsStyle: 'card', insightStyle: 'bar', chartPreference: 'bar', sectionDivider: false,
   },
-  anchnet: {
+  'tech-blue': {
     coverStyle: 'gradient-bottom',
     contentDensity: 'balanced',
     bulletStyle: 'dash',
@@ -137,7 +137,7 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     preferredLayouts: ['metrics-grid', 'chart-focus', 'process-flow', 'two-column', 'diagram'],
     metricsStyle: 'card', insightStyle: 'bar', chartPreference: 'bar', sectionDivider: false,
   },
-  'anchnet-teal': {
+  'tech-teal': {
     coverStyle: 'centered',
     contentDensity: 'balanced',
     bulletStyle: 'circle',
@@ -149,7 +149,7 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     preferredLayouts: ['metrics-grid', 'chart-focus', 'three-column', 'process-flow', 'diagram'],
     metricsStyle: 'card', insightStyle: 'box', chartPreference: 'line', sectionDivider: false,
   },
-  'anchnet-dark': {
+  'tech-dark': {
     coverStyle: 'haio-dark',
     contentDensity: 'high',
     bulletStyle: 'dash',
@@ -161,7 +161,7 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     preferredLayouts: ['metrics-grid', 'table-focus', 'chart-focus', 'two-column', 'process-flow'],
     metricsStyle: 'card', insightStyle: 'bar', chartPreference: 'bar', sectionDivider: false,
   },
-  'anchnet-gradient': {
+  'tech-gradient': {
     coverStyle: 'brand-gradient',
     contentDensity: 'balanced',
     bulletStyle: 'arrow',
@@ -173,7 +173,7 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     preferredLayouts: ['metrics-grid', 'chart-focus', 'process-flow', 'diagram', 'icon-grid'],
     metricsStyle: 'card', insightStyle: 'banner', chartPreference: 'line', sectionDivider: false,
   },
-  'anchnet-warm': {
+  'tech-warm': {
     coverStyle: 'left-block',
     contentDensity: 'medium',
     bulletStyle: 'square',
@@ -184,5 +184,17 @@ export const themeDesigns: Record<StyleTheme, ThemeDesign> = {
     subtitleItalic: false, useGradient: false,
     preferredLayouts: ['metrics-grid', 'two-column', 'chart-focus', 'table-focus', 'quote-highlight'],
     metricsStyle: 'large', insightStyle: 'box', chartPreference: 'bar', sectionDivider: true,
+  },
+  'brand-red': {
+    coverStyle: 'centered',
+    contentDensity: 'balanced',
+    bulletStyle: 'dash',
+    accentPosition: 'side-stripe',
+    chartStyle: 'bar',
+    footerStyle: 'thin-line',
+    titleSize: 22, bodySize: 12, coverTitleSize: 28, h2Size: 16, captionSize: 9,
+    subtitleItalic: false, useGradient: false,
+    preferredLayouts: ['metrics-grid', 'two-column', 'chart-focus', 'process-flow', 'table-focus'],
+    metricsStyle: 'card', insightStyle: 'banner', chartPreference: 'bar', sectionDivider: true,
   },
 };

@@ -1,40 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropic, MODEL } from '@/lib/model';
 import type { PageCount, StyleTheme, OutlineItem } from '@/lib/types';
 import { conductResearch, safeParseJSONArray } from '@/lib/research-engine';
 import type { ResearchReport } from '@/lib/research-engine';
+import { retryAsync, getErrorMessage } from '@/lib/retry';
+import { auth } from '@/lib/auth';
+import { QuotaExceededError, ensureQuotaForPages, getQuotaStatus } from '@/lib/quota';
 
-const client = new Anthropic({
-  baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
-  apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-});
 
 // Cache research for reuse in generation phase
-const researchCache = new Map<string, ResearchReport>();
-export function getCachedResearch(id: string) { return researchCache.get(id); }
+interface CachedResearchEntry {
+  userId: string;
+  report: ResearchReport;
+}
+
+const researchCache = new Map<string, CachedResearchEntry>();
+
+export function getCachedResearch(id: string, userId: string) {
+  const entry = researchCache.get(id);
+  if (!entry || entry.userId !== userId) return undefined;
+  return entry.report;
+}
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = session.user.id;
+
   const { topic, description, pageCount, theme: _theme, scenes } = await req.json() as {
     topic: string; description: string; pageCount: PageCount; theme: StyleTheme; scenes: string;
   };
 
   try {
+    await ensureQuotaForPages(userId, pageCount);
+
     // Phase 1: Research
     const research = await conductResearch(topic, description || '', scenes || '', pageCount);
     const researchId = `r-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    researchCache.set(researchId, research);
+    researchCache.set(researchId, { userId, report: research });
     setTimeout(() => researchCache.delete(researchId), 60 * 60 * 1000);
 
     // Phase 2: Generate outline only (fast, no full content)
     const stats = research.keyStats.slice(0, 8).map(s => `${s.metric}: ${s.value} (${s.source})`).join('\n');
     const findings = research.results.flatMap(r => r.findings).slice(0, 12).map(f => `${f.fact} (${f.source})`).join('\n');
 
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: `为"${topic}"设计严格${pageCount}页的PPT大纲。
+    const res = await retryAsync(
+      async () => anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: `为"${topic}"设计严格${pageCount}页的PPT大纲。
 
 描述: ${description || '无'}
 场景: ${scenes || '通用'}
@@ -55,10 +71,16 @@ ${findings}
 - 第一页必须是cover，最后一页必须是summary/action
 - 所有数据必须来自权威机构和官方来源
 - 直接返回JSON数组，第一个字符必须是 [`
-      }],
-    });
-
-    const res = await stream.finalMessage();
+        }],
+      }),
+      {
+        attempts: 3,
+        baseDelayMs: 900,
+        onRetry: (error, attempt, delayMs) => {
+          console.warn(`[Outline] retry ${attempt}/3 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
     let text = '';
     for (const block of res.content) { if (block.type === 'text') text += block.text; }
 
@@ -76,9 +98,11 @@ ${findings}
     while (outline.length < pageCount) outline.push({ title: '待补充', bullets: [], type: 'content', layout: 'full-text' });
     if (outline.length > pageCount) outline.length = pageCount;
 
+    const quota = await getQuotaStatus(userId);
     return NextResponse.json({
       outline,
       researchId,
+      quota,
       research: {
         summary: research.summary,
         keyStats: research.keyStats,
@@ -87,6 +111,9 @@ ${findings}
       },
     });
   } catch (e) {
+    if (e instanceof QuotaExceededError) {
+      return NextResponse.json({ error: e.message, code: 'QUOTA_EXCEEDED', quota: e.detail }, { status: e.status });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

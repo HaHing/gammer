@@ -1,17 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
-import type { SlideContent, PageCount, StyleTheme } from './types';
+import { anthropic, MODEL } from './model';
+import type { SlideContent, PageCount, StyleTheme, QualityIssue } from './types';
 import { safeParseJSONArray } from './research-engine';
-
-const client = new Anthropic({
-  baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
-  apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-});
-
-interface QualityIssue {
-  page: number;
-  issue: string;
-  severity: 'error' | 'warning';
-}
+import { retryAsync, getErrorMessage } from './retry';
 
 // Self-optimization: analyze generated slides and fix critical issues
 export async function optimizeSlides(
@@ -35,12 +25,13 @@ export async function optimizeSlides(
   })), null, 0);
 
   try {
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 16000,
-      messages: [{
-        role: 'user',
-        content: `你是PPT质量优化专家。以下是一份${pageCount}页演示文稿的质量检查结果。请修复所有问题。
+    const res = await retryAsync(
+      async () => anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 16000,
+        messages: [{
+          role: 'user',
+          content: `你是PPT质量优化专家。以下是一份${pageCount}页演示文稿的质量检查结果。请修复所有问题。
 
 ## 质量评分: ${score}/100
 
@@ -61,10 +52,16 @@ ${slidesJSON}
 8. 不要改变页数（严格 ${pageCount} 页）
 
 直接返回修复后的完整 JSON 数组，不要代码块，第一个字符必须是 [`
-      }],
-    });
-
-    const res = await stream.finalMessage();
+        }],
+      }),
+      {
+        attempts: 3,
+        baseDelayMs: 900,
+        onRetry: (error, attempt, delayMs) => {
+          console.warn(`[Optimizer] retry ${attempt}/3 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
     let text = '';
     for (const block of res.content) {
       if (block.type === 'text') text += block.text;

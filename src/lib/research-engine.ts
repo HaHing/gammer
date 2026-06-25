@@ -1,7 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropic, MODEL, AI_BACKEND } from './model';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import { retryAsync, getErrorMessage } from './retry';
 
 const execFileAsync = promisify(execFile);
 
@@ -19,10 +20,6 @@ export interface ResearchReport {
   contentStrategy?: string; // AI-synthesized content strategy for PPTX
 }
 
-const client = new Anthropic({
-  baseURL: process.env.GAMMER_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL,
-  apiKey: process.env.GAMMER_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY,
-});
 
 // ─── Strip proxy noise and extract JSON ───
 
@@ -145,8 +142,11 @@ export function safeParseJSONArray(text: string): unknown[] | null {
 
 // ─── Extract text from API response ───
 
-function extractAllText(content: Anthropic.Messages.ContentBlock[]): string {
-  return content.filter(b => b.type === 'text').map(b => (b as { type: string; text: string }).text).join('\n');
+function extractAllText(content: Array<{ type: string; text?: string }>): string {
+  return content
+    .filter((b) => b.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text as string)
+    .join('\n');
 }
 
 // ─── Fetch URL content via Scrapling for enriched research ───
@@ -159,7 +159,16 @@ async function fetchUrlContent(url: string): Promise<string> {
     const domain = new URL(url).hostname;
     const args = [FETCH_SCRIPT, url, '6000', '--json'];
     if (STEALTH_DOMAINS.some(d => domain.includes(d))) args.splice(3, 0, '--stealth');
-    const { stdout } = await execFileAsync('python3', args, { timeout: 30000 });
+    const { stdout } = await retryAsync(
+      () => execFileAsync('python3', args, { timeout: 30000 }),
+      {
+        attempts: 2,
+        baseDelayMs: 700,
+        onRetry: (error, attempt, delayMs) => {
+          console.log(`[Research] URL fetch retry ${attempt}/2 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 100)}`);
+        },
+      }
+    );
     const data = JSON.parse(stdout.trim().split('\n').pop() || '{}');
     if (data.content && data.content.length > 100) {
       console.log(`[Research] Fetched ${data.content.length} chars from ${url}`);
@@ -216,20 +225,27 @@ export async function conductResearch(topic: string, description: string, scenes
 }
 
 async function deepWebSearch(topic: string, description: string, scenes: string, urlContext: string = ''): Promise<ResearchReport> {
+  if (AI_BACKEND === 'gpt') {
+    console.warn('[Research] ⚠️ GPT backend active: web_search tool unavailable, using model knowledge only. Set AI_BACKEND=claude for real web search.');
+    return knowledgeFallback(topic, `${description}${urlContext ? `\n\n${urlContext.substring(0, 2000)}` : ''}`, scenes);
+  }
+
   try {
     const urlSection = urlContext ? `\n\n## 用户提供的参考资料（高优先级，必须引用）\n${urlContext.substring(0, 8000)}` : '';
     // Use streaming to avoid 10-minute timeout with web_search tool
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 12000,
-      tools: [{
-        type: 'web_search_20250305' as const,
-        name: 'web_search',
-        max_uses: 10,
-      }],
-      messages: [{
-        role: 'user',
-        content: `你是顶级行业研究分析师。请为"${topic}"进行深度研究。
+    const finalMessage = await retryAsync(
+      async () => {
+        const stream = anthropic.messages.stream({
+          model: MODEL,
+          max_tokens: 12000,
+          tools: [{
+            type: 'web_search_20250305' as const,
+            name: 'web_search',
+            max_uses: 10,
+          }],
+          messages: [{
+            role: 'user',
+            content: `你是顶级行业研究分析师。请为"${topic}"进行深度研究。
 
 ## 补充信息
 描述: ${description || '无'}
@@ -252,10 +268,18 @@ async function deepWebSearch(topic: string, description: string, scenes: string,
 {"findings":[{"fact":"含具体数字","source":"来源","url":"URL"}],"summary":"300字概述含10+数字","keyStats":[{"metric":"指标","value":"数值","source":"来源"}]}
 
 findings至少15条，keyStats至少10个。`
-      }],
-    });
-
-    const finalMessage = await stream.finalMessage();
+          }],
+        });
+        return stream.finalMessage();
+      },
+      {
+        attempts: 3,
+        baseDelayMs: 1000,
+        onRetry: (error, attempt, delayMs) => {
+          console.log(`[Research] web_search retry ${attempt}/3 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
 
     const text = extractAllText(finalMessage.content);
     console.log(`[Research] Got ${text.length} chars from ${finalMessage.content.length} blocks`);
@@ -285,12 +309,13 @@ async function synthesizeContentStrategy(
 ): Promise<string> {
   try {
     const findings = research.results.flatMap(r => r.findings);
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 6000,
-      messages: [{
-        role: 'user',
-        content: `你是McKinsey级别的咨询顾问+视觉设计总监。基于研究数据，为严格${pageCount}页的"${topic}"演示文稿设计逐页内容策略。
+    const finalMsg = await retryAsync(
+      async () => anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 6000,
+        messages: [{
+          role: 'user',
+          content: `你是McKinsey级别的咨询顾问+视觉设计总监。基于研究数据，为严格${pageCount}页的"${topic}"演示文稿设计逐页内容策略。
 
 ## 研究概述
 ${research.summary}
@@ -311,7 +336,6 @@ ${findings.slice(0, 25).map(f => `- ${f.fact} (${f.source})`).join('\n')}
 - 页码 + 建议type + 建议layout
 - 标题方向（必须是有观点的结论句，不是"市场概述"）
 - 应引用的具体数据（从研究数据中指定）
-- 是否需要配图（说明配图主题）
 - 是否需要keyMetrics大数字展示（指定哪些数字）
 - 是否需要chartData图表（指定数据点）
 - 叙事作用（这页在整体故事中扮演什么角色）
@@ -320,11 +344,17 @@ ${findings.slice(0, 25).map(f => `- ${f.fact} (${f.source})`).join('\n')}
 - ${pageCount <= 5 ? '5页极简：每页信息密度极高，每页至少2个keyMetrics或4个bullets' : pageCount <= 10 ? '10页标准：完整论证链，每个论点有数据支撑' : pageCount <= 15 ? '15页详细：多维度分析，每个维度2-3页深入' : '20+页深度：全面覆盖，每个维度充分展开'}
 - 所有数据必须来自上面的研究数据，不得编造
 - 连续两页不能用相同layout
-- 至少${Math.max(3, Math.floor(pageCount / 4))}页需要配图
 - 至少${Math.max(2, Math.floor(pageCount / 3))}页需要keyMetrics或chartData`
-      }],
-    });
-    const finalMsg = await stream.finalMessage();
+        }],
+      }),
+      {
+        attempts: 2,
+        baseDelayMs: 900,
+        onRetry: (error, attempt, delayMs) => {
+          console.log(`[Research] strategy retry ${attempt}/2 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
     const strategy = extractAllText(finalMsg.content);
     console.log(`[Research] ✓ Content strategy: ${strategy.length} chars`);
     return strategy;
@@ -336,20 +366,30 @@ ${findings.slice(0, 25).map(f => `- ${f.fact} (${f.source})`).join('\n')}
 
 async function reStructure(topic: string, rawText: string): Promise<ResearchReport> {
   try {
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 10000,
-      messages: [{
-        role: 'user',
-        content: `从以下研究文本中提取结构化数据。只返回JSON，不要代码块，第一个字符必须是 { ：
+    const reMsg = await retryAsync(
+      async () => {
+        return anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 10000,
+          messages: [{
+            role: 'user',
+            content: `从以下研究文本中提取结构化数据。只返回JSON，不要代码块，第一个字符必须是 { ：
 
 ${rawText.substring(0, 12000)}
 
 格式：{"findings":[{"fact":"事实","source":"来源","url":""}],"summary":"概述","keyStats":[{"metric":"指标","value":"值","source":"来源"}]}
 findings至少20条，keyStats至少12个。`
-      }],
-    });
-    const reMsg = await stream.finalMessage();
+          }],
+        });
+      },
+      {
+        attempts: 2,
+        baseDelayMs: 900,
+        onRetry: (error, attempt, delayMs) => {
+          console.log(`[Research] re-structure retry ${attempt}/2 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
     const text = extractAllText(reMsg.content);
     const data = safeParseJSON(text);
     if (data && (data.findings || data.keyStats)) {
@@ -366,21 +406,31 @@ findings至少20条，keyStats至少12个。`
 async function knowledgeFallback(topic: string, description: string, scenes: string): Promise<ResearchReport> {
   console.log('[Research] Using knowledge-based fallback...');
   try {
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8000,
-      messages: [{
-        role: 'user',
-        content: `你是行业研究分析师。基于专业知识为"${topic}"提供数据报告。
+    const fbMsg = await retryAsync(
+      async () => {
+        return anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 8000,
+          messages: [{
+            role: 'user',
+            content: `你是行业研究分析师。基于专业知识为"${topic}"提供数据报告。
 描述: ${description || '无'}  场景: ${scenes || '通用'}
 
 直接返回JSON，第一个字符必须是 { ，不要代码块不要其他文字：
 {"findings":[{"fact":"含具体数字","source":"来源机构","url":""}],"summary":"300字概述含10+关键数字","keyStats":[{"metric":"指标","value":"数值含单位","source":"来源"}]}
 
 findings至少15条，keyStats至少10个。覆盖市场规模、增长率、竞争格局、技术趋势、投资动态。`
-      }],
-    });
-    const fbMsg = await stream.finalMessage();
+          }],
+        });
+      },
+      {
+        attempts: 2,
+        baseDelayMs: 900,
+        onRetry: (error, attempt, delayMs) => {
+          console.log(`[Research] fallback retry ${attempt}/2 in ${delayMs}ms: ${getErrorMessage(error).substring(0, 120)}`);
+        },
+      }
+    );
     const text = extractAllText(fbMsg.content);
     const data = safeParseJSON(text);
     if (data && (data.findings || data.keyStats)) {

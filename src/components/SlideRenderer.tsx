@@ -1,10 +1,21 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import type { SlideContent, ThemeConfig } from '@/lib/types';
 import type { ThemeDesign } from '@/lib/theme-design';
 import { themeDesigns } from '@/lib/theme-design';
 import type { StyleTheme } from '@/lib/types';
 import { EditableText } from '@/components/editor/EditableText';
+
+const MermaidDiagram = dynamic(() => import('./MermaidDiagram'), {
+  ssr: false,
+  loading: () => <div className="mt-1 text-center text-[5px] text-gray-400 animate-pulse">Loading diagram...</div>,
+});
+
+const DiagramSlide = dynamic(() => import('./DiagramSlide'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400 animate-pulse">Loading diagram...</div>,
+});
 
 interface Props {
   slide: SlideContent;
@@ -33,9 +44,6 @@ function CoverSlide({ slide, theme, design, editable, onUpdate }: { slide: Slide
 
   return (
     <div className="aspect-[16/9] rounded-lg overflow-hidden relative" style={bg}>
-      {slide.imageUrl && (
-        <img src={slide.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-      )}
       {design.coverStyle === 'haio-dark' && (
         <>
           <div className="absolute left-0 top-0 w-1 h-full" style={{ background: theme.primary }} />
@@ -135,7 +143,27 @@ function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate
       {layout === 'pyramid' && <Pyramid bullets={slide.bullets || []} theme={theme} />}
       {layout === 'problem-solution' && <ProblemSolution bullets={slide.bullets || []} theme={theme} />}
       {layout === 'highlight' && <Highlight metric={slide.keyMetrics?.[0]} insight={slide.insight} theme={theme} />}
-      {layout === 'diagram' && slide.diagramDescription && (
+      {layout === 'diagram' && slide.diagramType === 'drawio' && slide.drawioXml && (
+        <div className="flex gap-2 w-full mt-1" style={{ height: '180px' }}>
+          <div className="flex-1 min-w-0">
+            <DiagramSlide xml={slide.drawioXml} editable={editable} onSave={xml => onUpdate?.({ ...slide, drawioXml: xml })} className="w-full h-full border-0 rounded" />
+          </div>
+          {slide.bullets && slide.bullets.length > 0 && (
+            <div className="w-[38%] shrink-0 flex flex-col gap-[3px] overflow-y-auto pr-1">
+              {slide.bullets.map((b, i) => (
+                <div key={i} className="flex gap-1 text-[5px] leading-[1.6]">
+                  <span style={{ color: theme.primary, flexShrink: 0 }}>●</span>
+                  <span style={{ color: theme.text }}>{b}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {layout === 'diagram' && slide.diagramType !== 'drawio' && slide.mermaidCode && (
+        <MermaidDiagram code={slide.mermaidCode} theme={theme} />
+      )}
+      {layout === 'diagram' && !slide.mermaidCode && !slide.drawioXml && slide.diagramDescription && (
         <DiagramView description={slide.diagramDescription} theme={theme} />
       )}
       {!['two-column', 'three-column', 'big-number', 'quote-highlight', 'icon-grid', 'process-flow', 'funnel', 'pyramid', 'problem-solution', 'highlight', 'diagram'].includes(layout) && slide.bullets && slide.bullets.length > 0 && (
@@ -151,12 +179,6 @@ function ContentSlide({ slide, theme, design, pageNum, total, editable, onUpdate
       {/* Source */}
       {slide.source && <p className="text-[5px] mt-1 italic" style={{ color: theme.secondary }}>📎 {slide.source}</p>}
 
-      {/* Image */}
-      {slide.imageUrl && (
-        <div className="mt-1 flex justify-center">
-          <img src={slide.imageUrl} alt="" className="max-h-[40px] rounded object-cover opacity-90" />
-        </div>
-      )}
     </SlideFrame>
   );
 }
@@ -212,9 +234,9 @@ function SlideFrame({ children, theme, design, pageNum, total }: { children: Rea
       {design.accentPosition === 'side-stripe' && <div className="absolute right-0 top-0 w-[12px] h-full opacity-10" style={{ background: theme.primary }} />}
 
       {/* Card wrapper for haio */}
-      <div className={`h-full px-[5%] py-[4%] flex flex-col overflow-hidden ${design.useCard ? '' : ''}`}>
+      <div className={`h-full px-[5%] py-[4%] flex flex-col overflow-hidden`}>
         {design.useCard ? (
-          <div className="flex-1 bg-white rounded-md shadow-sm border-l-2 px-3 py-2 overflow-hidden" style={{ borderColor: theme.primary }}>
+          <div className="flex-1 bg-white rounded-md shadow-sm border-l-2 px-3 py-2 overflow-hidden flex flex-col" style={{ borderColor: theme.primary }}>
             {children}
           </div>
         ) : children}
@@ -548,18 +570,18 @@ function IconGrid({ bullets, theme }: { bullets: string[]; theme: ThemeConfig })
 
 function ProcessFlow({ bullets, theme }: { bullets: string[]; theme: ThemeConfig }) {
   return (
-    <div className="mt-2 relative">
-      <div className="absolute top-2 left-0 right-0 h-[2px] opacity-30" style={{ background: theme.primary }} />
-      <div className="flex justify-between relative">
+    <div className="mt-3 relative flex-1">
+      <div className="absolute top-3 left-[5%] right-[5%] h-[2px] opacity-20" style={{ background: theme.primary }} />
+      <div className="flex justify-between relative px-[2%]">
         {bullets.map((step, i) => (
           <div key={i} className="flex flex-col items-center" style={{ width: `${100 / bullets.length}%` }}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] font-bold text-white z-10" style={{ background: theme.primary }}>
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[7px] font-bold text-white z-10 shadow-sm" style={{ background: theme.primary }}>
               {i + 1}
             </div>
             {i < bullets.length - 1 && (
-              <span className="absolute text-[8px] font-bold" style={{ color: theme.primary, left: `${(i + 0.7) * (100 / bullets.length)}%`, top: '0px' }}>→</span>
+              <span className="absolute text-[10px] font-bold" style={{ color: theme.primary, left: `${(i + 0.7) * (100 / bullets.length)}%`, top: '2px' }}>→</span>
             )}
-            <p className="text-[5px] text-center mt-1 px-0.5 leading-tight" style={{ color: theme.text }}>{step}</p>
+            <p className="text-[6px] text-center mt-1.5 px-1 leading-[1.5]" style={{ color: theme.text }}>{step}</p>
           </div>
         ))}
       </div>

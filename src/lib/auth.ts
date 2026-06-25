@@ -1,11 +1,27 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 import { prisma } from '@/lib/prisma';
+import { authConfig } from '@/lib/auth.config';
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  providers: [
+const enableDevCredentials = process.env.ENABLE_DEV_CREDENTIALS === 'true' || process.env.NODE_ENV !== 'production';
+const hasGoogleOAuth = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+
+const providers: any[] = [];
+
+if (hasGoogleOAuth) {
+  providers.push(
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID!,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      authorization: { params: { prompt: 'select_account' } },
+    })
+  );
+}
+
+if (enableDevCredentials || !hasGoogleOAuth) {
+  providers.push(
     Credentials({
       name: 'Email',
       credentials: {
@@ -14,7 +30,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email) return null;
-        const email = credentials.email as string;
+        const email = String(credentials.email).trim().toLowerCase();
         const name = (credentials.name as string) || email.split('@')[0];
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -22,17 +38,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         return { id: user.id, email: user.email, name: user.name };
       },
-    }),
-  ],
-  session: { strategy: 'jwt' },
-  pages: { signIn: '/login' },
+    })
+  );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
+  adapter: PrismaAdapter(prisma),
+  providers,
   callbacks: {
-    jwt({ token, user }) {
-      if (user) token.id = user.id;
-      return token;
+    ...authConfig.callbacks,
+    async signIn({ account }) {
+      if (!account) return false;
+      if (account.provider === 'credentials' && !enableDevCredentials) return false;
+      return true;
     },
-    session({ session, token }) {
-      if (session.user && token.id) session.user.id = token.id as string;
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true },
+        });
+        session.user.role = dbUser?.role === 'admin' ? 'admin' : 'user';
+      }
       return session;
     },
   },

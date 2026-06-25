@@ -10,8 +10,14 @@ datasource db {
 model User {
   id        String    @id @default(cuid())
   email     String    @unique
+  emailVerified DateTime?
   name      String?
   image     String?
+  role      String    @default("user")
+  pageQuota Int       @default(10)
+  pageUsed  Int       @default(0)
+  lastLoginAt DateTime?
+  lastActiveAt DateTime?
   accounts  Account[]
   sessions  Session[]
   projects  Project[]
@@ -63,9 +69,49 @@ model Project {
   slides      String?
   outline     String?
   research    String?
+  delivery    String?
   score       Int?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latestExport ProjectExport?
+  exportErrors ProjectExportError[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model DiagramVersion {
+  id         String   @id @default(cuid())
+  projectId  String
+  slideIndex Int
+  xml        String
+  label      String?
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, slideIndex])
+}
+
+model ProjectExport {
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  data       Bytes?
+  mimeType   String   @default("application/vnd.openxmlformats-officedocument.presentationml.presentation")
+  fileName   String   @default("presentation.pptx")
+  size       Int      @default(0)
+  expiresAt  DateTime
+  lastError  String?
+  lastErrorAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ProjectExportError {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source    String   @default("download")
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }
