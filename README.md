@@ -1,6 +1,5 @@
 <p align="center">
-  <img src=<img width="124" height="45" alt="image" src="https://github.com/user-attachments/assets/b4e4560a-2f04-4220-aa03-34fac30a804a" />
- alt="Gammer Logo" width="120" height="120">
+  <img src="https://github.com/user-attachments/assets/b4e4560a-2f04-4220-aa03-34fac30a804a" /> alt="Gammer Logo" width="120" height="120">
 </p>
 
 <h1 align="center">Gammer</h1>
@@ -26,6 +25,11 @@
 </p>
 
 <img width="2547" height="1387" alt="d4c38f3ff8f82916b5974f259fc27610" src="https://github.com/user-attachments/assets/e512e795-23f0-4251-b702-89600b17c3fe" />
+<img width="1093" height="635" alt="image" src="https://github.com/user-attachments/assets/da0426a7-2d48-4acf-a762-33a49a118980" />
+<img width="1148" height="1287" alt="image" src="https://github.com/user-attachments/assets/c5114ff7-d5d2-4bac-9874-c50c6d1264a1" />
+<img width="2548" height="1365" alt="image" src="https://github.com/user-attachments/assets/d9bc0e88-4aed-40a5-b267-33fe3cddea3a" />
+
+
 
 ---
 
