@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b4e4560a-2f04-4220-aa03-34fac30a804a" /> alt="Gammer Logo" width="120" height="120">
+  <img src="https://github.com/user-attachments/assets/b4e4560a-2f04-4220-aa03-34fac30a804a" /> 
 </p>
 
 <h1 align="center">Gammer</h1>
